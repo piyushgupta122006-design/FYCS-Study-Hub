@@ -37,6 +37,45 @@ export const AppProvider = ({ children }) => {
   // Loading state
   const [loading, setLoading] = useState(true);
   
+  // 📱💻 Bi-Device Smart Zoom Logic (Breakpoint: 425px)
+  const getIsMobile = () => window.innerWidth <= 425;
+
+  const [siteZoom, setSiteZoom] = useState(() => {
+    if (getIsMobile()) {
+      const savedMobile = localStorage.getItem('siteZoom_mobile');
+      return savedMobile ? Number(savedMobile) : 85; // Mobile Default 85%
+    } else {
+      const savedPC = localStorage.getItem('siteZoom_pc');
+      return savedPC ? Number(savedPC) : 100; // PC Default 100%
+    }
+  });
+
+  // Zoom ko current device ke hisaab se save karna
+  const updateSiteZoom = (newZoom) => {
+    setSiteZoom(newZoom);
+    if (getIsMobile()) {
+      localStorage.setItem('siteZoom_mobile', newZoom);
+    } else {
+      localStorage.setItem('siteZoom_pc', newZoom);
+    }
+  };
+
+  // Agar user browser resize karke mobile se PC view mein jaye, toh auto-switch ho jaye
+  useEffect(() => {
+    const handleResize = () => {
+      if (getIsMobile()) {
+        const savedMobile = localStorage.getItem('siteZoom_mobile');
+        setSiteZoom(savedMobile ? Number(savedMobile) : 85);
+      } else {
+        const savedPC = localStorage.getItem('siteZoom_pc');
+        setSiteZoom(savedPC ? Number(savedPC) : 100);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // User role state (separate from users array for real-time updates)
   const [userRole, setUserRole] = useState(null);
   
@@ -496,6 +535,8 @@ export const AppProvider = ({ children }) => {
     userRole,
     stats,
     loading,
+    siteZoom,
+    updateSiteZoom,
     
     // RBAC
     isAdmin,

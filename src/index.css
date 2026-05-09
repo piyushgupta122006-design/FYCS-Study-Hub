@@ -3,13 +3,7 @@
 
 /* 🚨 YEH NAYA SECTION ADD KAREIN GLOBAL CONSISTENCY KE LIYE 🚨 */
 @layer base {
-  /* 📱 SIRF MOBILE SCREENS (425px aur usse chote) KE LIYE 80% ZOOM */
-  @media (max-width: 425px) {
-    html {
-      zoom: 0.8;
-    }
-  }
-
+  
   /* 1. Select Box Styling: Default ugly arrow ko hatakar custom sleek arrow lagana */
   select {
     -webkit-appearance: none;

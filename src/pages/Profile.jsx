@@ -1,4 +1,4 @@
-import { User, LogOut, ExternalLink, Clock, Trash2, Settings, X, Sparkles, Bell, Bookmark, FileText, Upload } from "lucide-react";
+import { User, LogOut, ExternalLink, Clock, Trash2, Settings, X, Sparkles, Bell, Bookmark, FileText, Upload, Monitor, ChevronRight, Minus, Plus, Check } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useState, useEffect, useRef } from "react";
 import { updateProfile } from "firebase/auth";
@@ -26,7 +26,7 @@ const SUBJECT_SHORT_NAMES = {
 };
 
 export default function Profile() {
-  const { user, login, logout, materials, toggleFavorite, getSubjectById } = useApp();
+  const { user, login, logout, materials, toggleFavorite, getSubjectById, siteZoom, updateSiteZoom } = useApp();
   const [recentHistory, setRecentHistory] = useState([]);
   const [activeTab, setActiveTab] = useState("recent");
   const [showClearModal, setShowClearModal] = useState(false);
@@ -46,6 +46,19 @@ export default function Profile() {
   const [isBellOpen, setIsBellOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Zoom Modal state
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  
+  // 🚨 NAYA STATE: Taaki slider se turant zoom na ho
+  const [tempZoom, setTempZoom] = useState(siteZoom);
+
+  // Jab bhi popup khule, tempZoom purane size pe set ho jaye
+  useEffect(() => {
+    if (isZoomModalOpen) {
+      setTempZoom(siteZoom);
+    }
+  }, [isZoomModalOpen, siteZoom]);
   
   // Profile DP Loading State
   const [isDpLoading, setIsDpLoading] = useState(false); // Default false rahega
@@ -532,6 +545,105 @@ export default function Profile() {
             <div className="glass-card p-6 max-w-full overflow-x-hidden">
               <h3 className="font-bold text-lg mb-6 text-white">Settings</h3>
               <div className="space-y-4">
+                {/* Display Size Settings Button */}
+        <button 
+          onClick={() => setIsZoomModalOpen(true)}
+          className="w-full flex items-center justify-between p-4 bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors border border-zinc-800/50 rounded-xl mb-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl">
+              <Monitor size={20} />
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-white text-sm">Display Size</h3>
+              <p className="text-[11px] text-zinc-400">Scale interface (Current: {siteZoom}%)</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-zinc-500" />
+        </button>
+
+        {/* 🚨 EXACT SAME UI IN A POPUP (MODAL) 🚨 */}
+        {isZoomModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-sm bg-[#18181b] border border-zinc-800 rounded-2xl p-5 shadow-2xl relative">
+              
+              {/* Close Button (X) */}
+              <button 
+                onClick={() => setIsZoomModalOpen(false)} 
+                className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              {/* Exact UI matching your favorite design */}
+              <div className="flex items-center gap-3 mb-5 pr-8">
+                <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl">
+                  <Monitor size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">Display Size</h3>
+                  <p className="text-[11px] text-zinc-400">Adjust the interface scale</p>
+                </div>
+                {/* Current Percentage Badge (Uses tempZoom now) */}
+                <div className="ml-auto px-3 py-1 bg-zinc-900 rounded-lg border border-zinc-800 shadow-inner">
+                  <span className="text-sm font-bold text-[#FFD700]">{tempZoom}%</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 px-1">
+                {/* Minus Button */}
+                <button 
+                  onClick={() => setTempZoom(Math.max(80, tempZoom - 5))}
+                  className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors active:scale-95"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
+                </button>
+                
+                {/* Enhanced Range Slider */}
+                <input 
+                  type="range" 
+                  min="80" 
+                  max="120" 
+                  step="5"
+                  value={tempZoom}
+                  onChange={(e) => setTempZoom(Number(e.target.value))}
+                  className="flex-1 accent-[#FFD700] h-1.5 bg-zinc-800 rounded-full appearance-none cursor-pointer outline-none"
+                />
+                
+                {/* Plus Button */}
+                <button 
+                  onClick={() => setTempZoom(Math.min(120, tempZoom + 5))}
+                  className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors active:scale-95"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </button>
+              </div>
+              
+              {/* 🚨 Reset Button AND Tick Button (Same Design) 🚨 */}
+              <div className="mt-5 flex justify-center gap-3">
+                <button 
+                  onClick={() => setTempZoom(window.innerWidth <= 425 ? 85 : 100)}
+                  className="text-xs px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 transition-all font-medium border border-white/10 active:scale-95"
+                >
+                  Reset to Default
+                </button>
+                
+                {/* Tick Button for Saving - Exact same classes */}
+                <button 
+                  onClick={() => {
+                    updateSiteZoom(tempZoom);
+                    setIsZoomModalOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 transition-all font-medium border border-white/10 active:scale-95 flex items-center justify-center"
+                >
+                  <Check size={16} strokeWidth={3} />
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
                 <div 
                   className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg cursor-pointer hover:bg-zinc-800/50 transition-colors"
                   onClick={() => setIsEditingProfile(true)}

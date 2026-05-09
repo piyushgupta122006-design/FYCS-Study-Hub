@@ -85,7 +85,7 @@ function AppSkeleton() {
 }
 
 function App() {
-  const { user, loading } = useApp();
+  const { user, loading, siteZoom } = useApp();
   const location = useLocation(); // Use React Router's reactive location
   const [isUserBanned, setIsUserBanned] = useState(false);
   const [userDataLoading, setUserDataLoading] = useState(true);
@@ -94,6 +94,13 @@ function App() {
   const isPublicRoute = location.pathname === '/privacy' || location.pathname === '/terms';
 
   // No background prefetching needed - React.lazy handles code splitting automatically
+
+  // Apply Site Zoom globally with Smooth Transition
+  useEffect(() => {
+    // Smooth animation ke liye CSS transition add kiya
+    document.documentElement.style.transition = 'zoom 0.3s ease-in-out';
+    document.documentElement.style.zoom = `${siteZoom / 100}`;
+  }, [siteZoom]);
 
   // Check if user is banned
   useEffect(() => {

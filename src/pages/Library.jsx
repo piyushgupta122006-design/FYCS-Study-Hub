@@ -98,8 +98,9 @@ export default function Library() {
   const { libraryMaterials, fetchLibraryData, isLibraryLoaded } = useData();
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("");
-  const [selectedType, setSelectedType] = useState("");
+  const [selectedSemester, setSelectedSemester] = useState("all"); // default 'all'
+  const [selectedType, setSelectedType] = useState("all"); // default 'all'
+  const [selectedSubject, setSelectedSubject] = useState("all"); // 🚨 NAYI STATE ADD KI HAI
   const [sortBy, setSortBy] = useState("newest"); // Default to newest first
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -125,6 +126,11 @@ export default function Library() {
       setLocalLoading(false);
     });
   }, [fetchLibraryData]);
+
+  // 🚨 JAB BHI SEMESTER BADLE, SUBJECT 'ALL' PAR RESET HO JAYE
+  useEffect(() => {
+    setSelectedSubject("all");
+  }, [selectedSemester]);
 
   // 🚨 SUBJECT DROPDOWN FILTER LOGIC - Same as Admin.jsx
   let filteredSubjectsForDropdown = [];
@@ -230,19 +236,19 @@ export default function Library() {
         getSubjectById(material.subjectId)?.name.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Filter by semester
-      const matchesSemester = !selectedSemester || 
-        material.semId === selectedSemester || 
-        selectedSemester === "all";
+      const matchesSemester = selectedSemester === "all" || material.semId === selectedSemester;
 
       // Filter by type
-      const matchesType = !selectedType || 
-        material.type.toLowerCase() === selectedType.toLowerCase() || 
-        selectedType === "all";
+      const matchesType = selectedType === "all" || material.type.toLowerCase() === selectedType.toLowerCase();
+
+      // 🚨 NAYA: Filter by Subject
+      const matchesSubject = selectedSubject === "all" || material.subjectId === selectedSubject;
 
       // Only show approved materials
       const isApproved = material.status === "Approved";
 
-      return matchesSearch && matchesSemester && matchesType && isApproved;
+      // 🚨 Return mein matchesSubject add kiya
+      return matchesSearch && matchesSemester && matchesType && matchesSubject && isApproved;
     });
 
     // Apply sorting
@@ -254,7 +260,7 @@ export default function Library() {
     });
 
     return result;
-  }, [libraryMaterials, searchTerm, selectedSemester, selectedType, getSubjectById, sortBy]);
+  }, [libraryMaterials, searchTerm, selectedSemester, selectedType, selectedSubject, getSubjectById, sortBy]);
 
   // Show loading spinner immediately for better UX
   if (localLoading || !isLibraryLoaded) {
@@ -366,12 +372,13 @@ export default function Library() {
             </div>
           </div>
 
-          {/* 🌟 PREMIUM LIBRARY FILTERS */}
+          {/* 🌟 PREMIUM LIBRARY FILTERS FIX */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 relative z-[50]">
             
             <CustomSelect
               value={selectedSemester}
-              onChange={setSelectedSemester} // Direct function lagayenge
+              // 🚨 FIX: Direct 'val' receive karke state mein daalna hai
+              onChange={(val) => setSelectedSemester(val)} 
               placeholder="All Semesters"
               options={[
                 { value: "all", label: "All Semesters" },
@@ -381,7 +388,8 @@ export default function Library() {
 
             <CustomSelect
               value={selectedType}
-              onChange={setSelectedType}
+              // 🚨 FIX: (e.target.value) ka use nahi karna hai
+              onChange={(val) => setSelectedType(val)}
               placeholder="All Types"
               options={[
                 { value: "all", label: "All Types" },
@@ -393,15 +401,16 @@ export default function Library() {
             />
 
             <CustomSelect
-              value={selectedSemester === "" || selectedSemester === "all" ? "all" : filteredSubjectsForDropdown.find(s => s.semId === selectedSemester)?.id || "all"}
-              onChange={(val) => {
-                // For Library, we don't have a separate subject filter state, so this is just for display
-              }}
+              // 🚨 FIX: Ab ye directly state se connect ho gaya hai
+              value={selectedSubject} 
+              // 🚨 FIX: Ab ye actually state ko update karega
+              onChange={(val) => setSelectedSubject(val)}
               placeholder="All Subjects"
               options={[
                 { value: "all", label: "All Subjects" },
                 ...(filteredSubjectsForDropdown || []).map(sub => ({ value: sub.id, label: sub.name }))
               ]}
+              emptyMessage="⚠️ Please select Semester first"
             />
           </div>
         </div>

@@ -26,10 +26,13 @@ export default function Login() {
   };
   
   return (
-    <div className="bg-black min-h-screen text-white overflow-y-auto font-sans">
+    // Root container wahi hai jo aapne bheja tha (Scrolling 100% kaam karegi)
+    <div className="bg-[#0a0a0a] min-h-screen text-white overflow-y-auto font-sans relative">
       
-      {/* 1. MAIN LOGIN SECTION (Viewport Height) */}
-      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 1. MAIN LOGIN SECTION */}
+      {/* 🚨 FIX: flex-col aur justify-between lagaya hai, aur 100svh use kiya hai */}
+      <div className="min-h-[100svh] w-full flex flex-col items-center justify-between p-4 relative overflow-hidden">
+        
         {/* Animated Background Blobs */}
         <div 
           className="absolute inset-0 opacity-20"
@@ -41,6 +44,9 @@ export default function Login() {
         <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl animate-pulse" />
         
+        {/* 🚨 FIX: Upar ek khali jagah (spacer) di hai taaki card exactly center me rahe */}
+        <div className="w-full h-8 md:h-12 relative z-10"></div>
+
         {/* Glass Card Container */}
         <div className="relative z-10 max-w-md w-full">
           <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
@@ -88,7 +94,7 @@ export default function Login() {
                 )}
               </button>
 
-              {/* PUBLIC LINKS FOR GOOGLE BOT */}
+              {/* PUBLIC LINKS */}
               <div className="mt-8 pt-6 border-t border-white/10 flex flex-col items-center gap-2 text-xs text-zinc-500">
                 <p>By signing in, you agree to our policies.</p>
                 <div className="flex gap-4">
@@ -101,21 +107,23 @@ export default function Login() {
           </div>
         </div>
         
-        {/* Scroll Indicator (Optional but looks good) */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center animate-bounce text-zinc-500">
+        {/* 🚨 FIX: Absolute hata diya hai. Ab ye natural flow mein hamesha bottom par rahega */}
+        {/* Scroll Indicator */}
+        <div className="flex flex-col items-center animate-bounce text-zinc-500 z-10 mb-2 md:mb-6 mt-4">
           <span className="text-xs mb-2">Read More</span>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
         </div>
       </div>
 
-      {/* 2. SEO CONTENT SECTION (Hidden below the fold, satisfies the bots) */}
-      <div className="max-w-4xl mx-auto px-6 py-24 text-zinc-400 border-t border-white/5">
+      {/* 2. SEO CONTENT SECTION */}
+      {/* THE MAGIC FIX: pt-16 mt-12 md:mt-0 */}
+      <div className="max-w-4xl mx-auto px-6 py-24 text-zinc-400 border-t border-white/5 relative z-20 bg-[#0a0a0a] mt-24 md:mt-0">
         <h2 className="text-2xl font-bold text-white mb-6">Welcome to BNN CS Study Hub</h2>
         
         <div className="grid md:grid-cols-2 gap-8 text-sm leading-relaxed">
           <div>
             <p className="mb-4">
-              BNN CS Study Hub is the premier digital academic library and collaborative platform designed exclusively for First Year and Second Year Computer Science (FYCS & SYCS) students. Our primary mission is to simplify the educational journey by providing a secure, centralized, and easy-to-navigate environment for managing academic resources.
+              BNN CS Study Hub is premier digital academic library and collaborative platform designed exclusively for First Year and Second Year Computer Science (FYCS & SYCS) students. Our primary mission is to simplify the educational journey by providing a secure, centralized, and easy-to-navigate environment for managing academic resources.
             </p>
             <p>
               Whether you are preparing for your upcoming semester examinations or working on complex assignments, our platform offers structured access to high-quality study materials, comprehensive notes, previous year question papers, and practical reference files. Everything is organized meticulously by semester and subject to save your valuable time.

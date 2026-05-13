@@ -1,0 +1,369 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* 🚨 YEH NAYA SECTION ADD KAREIN GLOBAL CONSISTENCY KE LIYE 🚨 */
+@layer base {
+  
+  /* 1. Select Box Styling: Default ugly arrow ko hatakar custom sleek arrow lagana */
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    /* Custom clean SVG arrow */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='rgba(255, 255, 255, 0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 1rem center !important;
+    background-size: 1.1em !important;
+    padding-right: 2.5rem !important; /* Arrow ke liye space */
+  }
+
+  /* IE/Edge ka default arrow hide karna */
+  select::-ms-expand {
+    display: none;
+  }
+
+  /* 2. Options Styling: Dropdown list ko dark theme dena */
+  select option {
+    background-color: #0f0f11 !important; /* Deep dark background */
+    color: #e4e4e7 !important; /* Zinc-200 text */
+    padding: 12px 16px !important;
+    font-weight: 500;
+  }
+
+  /* Selected option ko highlight karna */
+  select option:checked {
+    background-color: #27272a !important; /* Zinc-800 */
+    color: #FFD700 !important; /* Theme Yellow */
+  }
+}
+
+@layer components {
+  /* Dark Glassmorphism (Critical) */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+  }
+
+  /* Fade-in animation for logo */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+  
+  .animate-marquee {
+    white-space: nowrap;
+    display: inline-block;
+  }
+  
+  .glass-nav {
+    @apply fixed bottom-0 left-0 right-0 backdrop-blur-2xl border-t border-white/10 z-50;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .btn-primary {
+    @apply bg-[#FFD700] hover:bg-[#FFC107] text-black font-bold py-3 px-6 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2;
+  }
+
+  .badge-live {
+    @apply inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold;
+  }
+
+  .btn-danger {
+    @apply bg-rose-500/15 hover:bg-rose-500/20 border border-rose-500/25 text-rose-200 font-bold rounded-xl transition-colors;
+  }
+  
+  /* Hide scrollbar for scrollable containers */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera*/
+  }
+}
+
+@layer utilities {
+  /* Custom mb-3 utility with custom spacing */
+  .mb-3 {
+    margin-bottom: calc(var(--spacing) * 2.5);
+  }
+
+  /* Additional no-scrollbar utility for better compatibility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+html,
+body {
+  touch-action: manipulation;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-[#0a0a0a] text-white;
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Custom Dark Scrollbar */
+* {
+  /* For Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 #0a0a0a; /* thumb color, track color */
+}
+
+/* For Chrome, Edge, and Safari */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a; /* Matches the dark background */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46; /* Zinc-700 color for the thumb */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b; /* Zinc-600 color on hover */
+}
+
+/* Custom Windows 11 Light Cursor */
+* {
+  /* Default cursor for everything */
+  cursor: url('/cursors/arrow.cur'), auto !important;
+}
+
+/* Custom 'Hand' cursor for clickable items */
+a, 
+button, 
+[role="button"], 
+input[type="submit"], 
+input[type="button"],
+.cursor-pointer {
+  cursor: url('/cursors/hand.cur'), pointer !important;
+}
+
+/* Fix for disabled buttons */
+button:disabled,
+button[disabled] {
+  cursor: not-allowed !important;
+}
+
+@layer utilities {
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     UNIFIED SELECT / DROPDOWN STYLING
+     Theme: Dark Glassmorphism + #FFD700 accent
+     Used across: Library, Upload, Admin, MaterialCard
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .select-premium,
+  .premium-dropdown {
+    /* Layout */
+    width: 100%;
+    padding: 10px 40px 10px 14px;
+    border-radius: 14px;
+
+    /* Glassmorphism background */
+    background-color: rgba(15, 15, 17, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    /* Border */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Text */
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+
+    /* Smooth transitions */
+    transition: border-color 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+    cursor: pointer;
+
+    /* Forces dark theme for the native OS dropdown menu on Windows/Android/iOS */
+    color-scheme: dark;
+
+    /* Remove default OS arrow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* Custom chevron arrow — golden tint matching theme */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,215,0,0.65)' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 1.1rem;
+  }
+
+  .select-premium:hover,
+  .premium-dropdown:hover {
+    background-color: rgba(25, 25, 28, 0.9);
+    border-color: rgba(255, 215, 0, 0.3);
+    color: #ffffff;
+  }
+
+  .select-premium:focus,
+  .premium-dropdown:focus {
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.18), 0 2px 16px rgba(255, 215, 0, 0.08);
+    background-color: rgba(20, 20, 22, 0.95);
+  }
+
+  /* Disabled state */
+  .select-premium:disabled,
+  .premium-dropdown:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  /* Native dropdown options — dark styled */
+  .select-premium option,
+  .premium-dropdown option {
+    background-color: #111113;
+    color: #e4e4e7;
+    padding: 10px 14px;
+    font-weight: 500;
+  }
+
+  .select-premium option:checked,
+  .premium-dropdown option:checked {
+    background-color: #1e1e20;
+    color: #FFD700;
+  }
+
+  /* ── Compact variant — same as select-premium but smaller padding ─ */
+  .select-premium-sm {
+    width: 100%;
+    padding: 8px 36px 8px 12px;
+    border-radius: 12px;
+    background-color: rgba(15, 15, 17, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: border-color 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+    cursor: pointer;
+    color-scheme: dark;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,215,0,0.65)' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 1rem;
+  }
+
+  .select-premium-sm:focus {
+    outline: none;
+    border-color: #FFD700;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.18);
+  }
+
+  .select-premium-sm:hover {
+    background-color: rgba(25, 25, 28, 0.9);
+    border-color: rgba(255, 215, 0, 0.3);
+    color: #ffffff;
+  }
+
+  /* ── Danger / red-accent variant for report selects ─ */
+  .select-premium-danger {
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(239,68,68,0.65)' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  }
+
+  .select-premium-danger:focus {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18) !important;
+  }
+
+  /* ── Mobile: full-width stack, larger tap targets ─ */
+  @media (max-width: 640px) {
+    .select-premium,
+    .premium-dropdown,
+    .select-premium-sm {
+      padding: 12px 40px 12px 14px;
+      border-radius: 14px;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+/* 🤖 Continuous AI Breathing & Glowing Animation */
+@keyframes ai-breathe {
+  0%, 100% { 
+    transform: translateY(0px) scale(1);
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4)); /* Halka blue glow */
+  }
+  50% { 
+    transform: translateY(-4px) scale(1.05);
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.9)); /* Tez blue glow */
+  }
+}
+
+.animate-ai-breathe {
+  animation: ai-breathe 3s ease-in-out infinite;
+}
+
+/* Agar aap chahte hain ki icon halka sa ghoome (spin) bhi, toh ise use kar sakte hain */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* 🤖 Floating AI Button (Strictly for Mobile) */
+@keyframes button-float {
+  0%, 100% { 
+    transform: translateY(0px); 
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 0 10px rgba(59, 130, 246, 0.4);
+  }
+  50% { 
+    transform: translateY(-8px); /* Upar jayega */
+    box-shadow: 0 15px 20px -3px rgba(0, 0, 0, 0.3), 0 0 20px rgba(168, 85, 247, 0.7); /* Glow change hoga */
+  }
+}
+
+/* Ye sirf 768px (Mobile) ya usse choti screens par kaam karega */
+@media (max-width: 768px) {
+  .mobile-float-btn {
+    animation: button-float 3s ease-in-out infinite;
+  }
+}

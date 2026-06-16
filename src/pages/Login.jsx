@@ -57,6 +57,8 @@ export default function Login() {
                   <img 
                     src="/logo.png" 
                     alt="BNN CS Study Hub Logo"
+                    width="64"
+                    height="64"
                     className="w-16 h-16 object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" 
                   />
                 </div>

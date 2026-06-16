@@ -134,7 +134,7 @@ const Home = () => {
     <div className="p-5 pt-10 max-w-md mx-auto">
       {/* Header Section */}
       <div className="text-center mb-10">
-        <img src={dbLogo} alt="BNN CS Study Hub Logo" className="w-16 h-16 object-contain mx-auto mb-4" />
+        <img src={dbLogo} alt="BNN CS Study Hub Logo" width="64" height="64" className="w-16 h-16 object-contain mx-auto mb-4" />
         <h1 className="text-3xl font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">BNN CS Study Hub</h1>
         <p className="text-gray-400 text-xs">Your central hub for BNN computer science students</p>
       </div>

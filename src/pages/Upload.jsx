@@ -203,7 +203,7 @@ export default function Upload() {
         <div className="mb-5 glass-card p-3 flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl">
           {user?.photoURL ? (
             <img
-              src={user.photoURL}
+              src={user.photoURL.includes("googleusercontent.com") ? (user.photoURL.includes("=") ? user.photoURL.replace(/=s\d+-c/, '=s128-c') : user.photoURL + "=s128-c") : user.photoURL}
               alt="Profile"
               className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-lg"
               referrerPolicy="no-referrer"

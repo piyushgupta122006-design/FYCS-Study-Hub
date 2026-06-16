@@ -404,6 +404,10 @@ export default function Profile() {
     );
   }
   
+  const avatarUrl = user.photoURL?.includes("googleusercontent.com")
+    ? (user.photoURL.includes("=") ? user.photoURL.replace(/=s\d+-c/, '=s128-c') : user.photoURL + "=s128-c")
+    : user.photoURL;
+
   return (
     <>
       <main className="bg-black pt-4 min-h-screen">
@@ -435,7 +439,7 @@ export default function Profile() {
 
               {user.photoURL ? (
                 <img 
-                  src={user.photoURL} 
+                  src={avatarUrl} 
                   alt={user.displayName} 
                   onLoad={() => setIsDpLoading(false)} // Photo load hote hi spinner band
                   onError={() => setIsDpLoading(false)} 

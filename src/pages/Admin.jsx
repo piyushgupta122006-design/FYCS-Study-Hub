@@ -575,7 +575,7 @@ export default function Admin() {
 
       const prompt = `You are an automated university database parser tool.
       Analyze these pre-filtered Course Heading Lines for Semester ${currentTargetSem}.
-      Format each line exactly as: SHORTFORM - FULLFORM (e.g., "OS - Principles of Operating Systems").
+      Format each line exactly as: FULLFORM - SHORTFORM  (e.g., "Principles of Operating Systems (OS)").
       
       CRITICAL RULES:
       1. Keep the exact full name intact in the FULLFORM part. Do not lose prefixes.

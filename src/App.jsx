@@ -326,7 +326,7 @@ function AppSkeleton() {
     PageSkeleton = ProfilePageSkeleton;
   } else if (path === '/upload' || path === '/admin-upload') {
     PageSkeleton = UploadPageSkeleton;
-  } else if (path === '/admin') {
+  } else if (path.startsWith('/admin')) {
     PageSkeleton = AdminPageSkeleton;
   } else if (parts[0] === 'semester' && parts.length >= 3) {
     PageSkeleton = MaterialsPageSkeleton;
@@ -355,7 +355,7 @@ function RouteSuspenseFallback() {
     PageSkeleton = ProfilePageSkeleton;
   } else if (path === '/upload' || path === '/admin-upload') {
     PageSkeleton = UploadPageSkeleton;
-  } else if (path === '/admin') {
+  } else if (path.startsWith('/admin')) {
     PageSkeleton = AdminPageSkeleton;
   } else if (parts[0] === 'semester' && parts.length >= 3) {
     PageSkeleton = MaterialsPageSkeleton;
@@ -452,7 +452,8 @@ function App() {
             <Route path="/library" element={<Library />} />
             <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
             <Route path="/admin-upload" element={<ProtectedRoute requiredRole="admin"><AdminUpload /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+            <Route path="/admin/:activeTab" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+            <Route path="/admin" element={<Navigate to="/admin/analytics" replace />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />

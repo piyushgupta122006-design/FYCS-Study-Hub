@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function Login() {
   const { login, user } = useApp();
@@ -20,8 +21,39 @@ export default function Login() {
       await login();
       navigate('/');
     } catch (error) {
-      console.error('Login error:', error);
+      // Always reset spinner — no matter what went wrong
       setIsLoading(false);
+
+      // Firebase error codes for Google popup auth
+      const code = error?.code || "";
+
+      if (
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        // User closed the popup themselves — silent, no toast needed
+        // Spinner already reset above, nothing else to do
+        return;
+      }
+
+      if (code === "auth/popup-blocked") {
+        toast.error("Popup blocked! Please allow popups for this site and try again.");
+        return;
+      }
+
+      if (code === "auth/network-request-failed") {
+        toast.error("No internet connection. Please check your network and try again.");
+        return;
+      }
+
+      if (code === "auth/too-many-requests") {
+        toast.error("Too many attempts. Please wait a moment and try again.");
+        return;
+      }
+
+      // Generic fallback for anything unexpected
+      console.error("Login error:", error);
+      toast.error("Sign in failed. Please try again.");
     }
   };
   

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { db, auth, googleProvider } from '../firebase';
-import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, Timestamp, setDoc, query, orderBy, where, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { db, auth, googleProvider, authReady } from '../firebase';
+import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, Timestamp, setDoc, query, orderBy, where, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
 import { signInWithPopup, signOut, onAuthStateChanged, GoogleAuthProvider } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { CheckCircle, X } from 'lucide-react';
@@ -16,6 +16,8 @@ export const useApp = () => {
   }
   return context;
 };
+
+const CREATOR_EMAILS = ["rishiuttamsahu@gmail.com", "piyushgupta122006@gmail.com"];
 
 // Provider Component
 export const AppProvider = ({ children }) => {
@@ -101,8 +103,10 @@ export const AppProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(null);
 
   // RBAC - Role-Based Access Control
-  const CREATOR_EMAILS = ["rishiuttamsahu@gmail.com", "piyushgupta122006@gmail.com"];
-  const isAdmin = CREATOR_EMAILS.includes(user?.email) || userRole === "admin";
+  const isAdmin = useMemo(() => 
+    CREATOR_EMAILS.includes(user?.email) || userRole === "admin",
+    [user?.email, userRole]
+  );
 
   // 🌟 NAYA GLOBAL UPLOAD ENGINE 🌟
   const [globalUploadState, setGlobalUploadState] = useState({ uploading: false, current: 0, total: 0, realProgress: 0 });
@@ -187,58 +191,94 @@ export const AppProvider = ({ children }) => {
   
   // Authentication listener with user sync and ban flag
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // Create a listener on the user's Firestore document
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        
-        const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const userData = docSnap.data();
-            // Merge Firebase Auth data with Firestore data (including favorites, role, etc)
-            setUser({
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName,
-              email: firebaseUser.email,
-              photoURL: firebaseUser.photoURL,
-              ...userData,
-              id: firebaseUser.uid
-            });
-            setUserRole(userData.role || "student");
-          } else {
-            // Create user document if it doesn't exist
-            setDoc(userDocRef, {
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName,
-              email: firebaseUser.email,
-              photoURL: firebaseUser.photoURL,
-              role: "student", // Default role
-              isBanned: false, // Default to not banned
-              favorites: [], // Initialize empty favorites array
-              createdAt: new Date()
-            });
-            setUser({
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName,
-              email: firebaseUser.email,
-              photoURL: firebaseUser.photoURL,
-              id: firebaseUser.uid
-            });
-            setUserRole("student");
-          }
-          setAuthLoading(false);
-        });
-
-        // Cleanup doc listener when auth state changes
-        return () => unsubscribeDoc();
-      } else {
-        setUser(null);
-        setUserRole(null);
-        setAuthLoading(false);
-      }
-    });
+    let unsubscribeAuth = null;
+    let unsubscribeDoc = null;
+    let isMounted = true;
     
-    return () => unsubscribeAuth();
+    const initAuth = async () => {
+      try {
+        await authReady;
+      } catch (err) {
+        console.error("Auth persistence setup failed:", err);
+      }
+      
+      if (!isMounted) return;
+      
+      unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+        // Clean up previous doc listener immediately when auth state changes
+        if (unsubscribeDoc) {
+          unsubscribeDoc();
+          unsubscribeDoc = null;
+        }
+        
+        if (firebaseUser) {
+          // Set loading true so UI doesn't render home page before fetching user doc
+          setAuthLoading(true);
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          
+          unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
+            if (docSnap.exists()) {
+              const userData = docSnap.data();
+              // Merge Firebase Auth data with Firestore data (including favorites, role, etc)
+              setUser({
+                uid: firebaseUser.uid,
+                displayName: firebaseUser.displayName,
+                email: firebaseUser.email,
+                photoURL: firebaseUser.photoURL,
+                ...userData,
+                id: firebaseUser.uid
+              });
+              setUserRole(userData.role || "student");
+              setAuthLoading(false);
+            } else {
+              // Create user document if it doesn't exist
+              const newUser = {
+                uid: firebaseUser.uid,
+                displayName: firebaseUser.displayName,
+                email: firebaseUser.email,
+                photoURL: firebaseUser.photoURL,
+                role: "student", // Default role
+                isBanned: false, // Default to not banned
+                favorites: [], // Initialize empty favorites array
+                createdAt: serverTimestamp() // Use serverTimestamp for consistency
+              };
+              
+              try {
+                await setDoc(userDocRef, newUser);
+                setUser({
+                  uid: firebaseUser.uid,
+                  displayName: firebaseUser.displayName,
+                  email: firebaseUser.email,
+                  photoURL: firebaseUser.photoURL,
+                  id: firebaseUser.uid
+                });
+                setUserRole("student");
+              } catch (err) {
+                console.error("Error creating user doc:", err);
+                toast.error("Failed to create user profile");
+              } finally {
+                setAuthLoading(false);
+              }
+            }
+          }, (error) => {
+            console.error("User doc listener error:", error);
+            setAuthLoading(false);
+          });
+        } else {
+          setUser(null);
+          setUserRole(null);
+          setAuthLoading(false);
+        }
+      });
+    };
+
+    initAuth();
+    
+    return () => {
+      isMounted = false;
+      if (unsubscribeAuth) unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
   
   // Derived state - Calculate statistics dynamically
@@ -259,45 +299,37 @@ export const AppProvider = ({ children }) => {
 
   // Authentication functions
   const login = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      // Save Google OAuth access token for Drive Picker
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        sessionStorage.setItem('google_access_token', credential.accessToken);
-      }
-      
-      // Force immediate state update for snappy UI
-      setUser(result.user);
-      
-      return { success: true, user: result.user };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: error.message };
+    // NOTE: We intentionally do NOT catch here.
+    // Errors (popup closed, network fail, etc.) are thrown up to the caller
+    // (Login.jsx handleLogin) so it can reset its own isLoading state and
+    // show the user a proper error message.
+    const result = await signInWithPopup(auth, googleProvider);
+    
+    // Save Google OAuth access token for Drive Picker
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      sessionStorage.setItem('google_access_token', credential.accessToken);
     }
+    
+    // Force immediate state update for snappy UI
+    setUser(result.user);
+    
+    return { success: true, user: result.user };
   };
 
-  // Function to silently refresh Google Drive token
+  // Function to retrieve Google Drive token from cache (no redundant popup)
   const refreshDriveToken = async () => {
     try {
       if (!auth.currentUser) {
         return { success: false, error: "No authenticated user" };
       }
       
-      // Force token refresh by getting current user
-      await auth.currentUser.getIdToken(true);
-      
-      // Sign in again to get fresh Google credentials
-      const result = await signInWithPopup(auth, googleProvider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      
-      if (credential?.accessToken) {
-        sessionStorage.setItem('google_access_token', credential.accessToken);
-        return { success: true, token: credential.accessToken };
+      const cachedToken = sessionStorage.getItem('google_access_token');
+      if (cachedToken) {
+        return { success: true, token: cachedToken };
       }
       
-      return { success: false, error: "Failed to get new access token" };
+      return { success: false, error: "No cached token found. Re-authentication required." };
     } catch (error) {
       console.error('Token refresh error:', error);
       return { success: false, error: error.message };
@@ -574,15 +606,8 @@ export const AppProvider = ({ children }) => {
   const incrementView = async (id) => {
     try {
       const materialRef = doc(db, "materials", id);
-      const materialSnap = await getDoc(materialRef);
-      
-      if (materialSnap.exists()) {
-        const currentViews = materialSnap.data().views || 0;
-        await updateDoc(materialRef, { views: currentViews + 1 });
-        return { success: true };
-      } else {
-        return { success: false, error: "Material not found" };
-      }
+      await updateDoc(materialRef, { views: increment(1) });
+      return { success: true };
     } catch (error) {
       console.error('Error incrementing view:', error);
       const errorMessage = error?.message || error?.toString() || "Failed to increment view count";

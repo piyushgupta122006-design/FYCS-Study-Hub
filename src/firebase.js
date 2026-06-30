@@ -7,9 +7,16 @@ import {
 } from "firebase/firestore";
 
 // ✅ Correct Config for 'fycs-study-hub'
+const isLocalhost = typeof window !== "undefined" && 
+  (window.location.hostname === "localhost" || 
+   window.location.hostname === "127.0.0.1" || 
+   window.location.hostname.startsWith("192.168."));
+
 const firebaseConfig = {
   apiKey: "AIzaSyCCDR8O9zy0bSyCa5dsinR8SSmnMQcWxTY",
-  authDomain: "fycs-study-hub.firebaseapp.com",
+  authDomain: !isLocalhost && typeof window !== "undefined" && window.location.hostname
+    ? window.location.hostname
+    : "fycs-study-hub.firebaseapp.com",
   projectId: "fycs-study-hub",
   storageBucket: "fycs-study-hub.firebasestorage.app",
   messagingSenderId: "308883339928",

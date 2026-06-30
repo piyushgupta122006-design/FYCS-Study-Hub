@@ -341,22 +341,32 @@ export const AppProvider = ({ children }) => {
       return { success: true, redirecting: true };
     }
 
-    // NOTE: We intentionally do NOT catch here.
-    // Errors (popup closed, network fail, etc.) are thrown up to the caller
-    // (Login.jsx handleLogin) so it can reset its own isLoading state and
-    // show the user a proper error message.
-    const result = await signInWithPopup(auth, googleProvider);
-    
-    // Save Google OAuth access token for Drive Picker
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (credential?.accessToken) {
-      sessionStorage.setItem('google_access_token', credential.accessToken);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      // Save Google OAuth access token for Drive Picker
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        sessionStorage.setItem('google_access_token', credential.accessToken);
+      }
+      
+      // Force immediate state update for snappy UI
+      setUser(result.user);
+      
+      return { success: true, user: result.user };
+    } catch (error) {
+      if (error?.code === "auth/popup-blocked") {
+        console.warn("Popup blocked, falling back to signInWithRedirect");
+        toast("Popup blocked! Redirecting you to Google instead...", {
+          icon: "🔄",
+          duration: 3000
+        });
+        await signInWithRedirect(auth, googleProvider);
+        return { success: true, redirecting: true };
+      }
+      // Re-throw any other error to be handled by the caller (like popup closed)
+      throw error;
     }
-    
-    // Force immediate state update for snappy UI
-    setUser(result.user);
-    
-    return { success: true, user: result.user };
   };
 
   // Function to retrieve Google Drive token from cache (no redundant popup)

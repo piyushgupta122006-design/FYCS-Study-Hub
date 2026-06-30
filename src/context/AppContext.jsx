@@ -209,13 +209,7 @@ export const AppProvider = ({ children }) => {
       // capture the Drive OAuth access token from the redirect, same as the
       // popup flow does.
       try {
-        const redirectResult = await getRedirectResult(auth);
-        if (redirectResult) {
-          const credential = GoogleAuthProvider.credentialFromResult(redirectResult);
-          if (credential?.accessToken) {
-            sessionStorage.setItem('google_access_token', credential.accessToken);
-          }
-        }
+        await getRedirectResult(auth);
       } catch (err) {
         console.error("Redirect sign-in error:", err);
         if (err?.code && err.code !== "auth/no-auth-event") {
@@ -373,12 +367,6 @@ export const AppProvider = ({ children }) => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
 
-      // Save Google OAuth access token for Drive Picker
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        sessionStorage.setItem('google_access_token', credential.accessToken);
-      }
-
       // Force immediate state update for snappy UI
       setUser(result.user);
 
@@ -411,23 +399,9 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Function to retrieve Google Drive token from cache (no redundant popup)
+  // Function to retrieve Google Drive token from cache (no longer required)
   const refreshDriveToken = async () => {
-    try {
-      if (!auth.currentUser) {
-        return { success: false, error: "No authenticated user" };
-      }
-      
-      const cachedToken = sessionStorage.getItem('google_access_token');
-      if (cachedToken) {
-        return { success: true, token: cachedToken };
-      }
-      
-      return { success: false, error: "No cached token found. Re-authentication required." };
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return { success: false, error: error.message };
-    }
+    return { success: false, error: "Google Drive token is no longer required or supported." };
   };
   
   const logout = async () => {

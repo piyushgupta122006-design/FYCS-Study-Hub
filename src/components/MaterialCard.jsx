@@ -6,7 +6,7 @@ import { db } from "../firebase";
 import { createPortal } from 'react-dom';
 import { toast } from "react-hot-toast";
 
-export default function MaterialCard({ material, onIncrementView, convertToDownloadLink, navigateToSubject = false, navigate, isNewMaterial, getSubjectById, onEdit }) {
+export default function MaterialCard({ material, onIncrementView, convertToDownloadLink, navigateToSubject = false, navigate, isNewMaterial, getSubjectById, onEdit, adminCompact = false }) {
   const { isAdmin, user, toggleFavorite } = useApp();
   
   // Local state for optimistic updates
@@ -227,7 +227,7 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
   };
 
   return (
-    <div className="glass-card p-4">
+    <div className={adminCompact ? "" : "glass-card p-4"}>
       <div className="flex items-start gap-3">
         <div className="mt-1">
           {material.type === 'Notes' ? <FileText className="text-blue-400" size={18} /> :
@@ -271,63 +271,65 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
 
       <div className="mt-4">
         {/* Button Layout */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleViewClick}
-            className="flex-1 py-2 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-200 font-bold hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
-          >
-            View <ExternalLink size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadClick}
-            className="hidden md:flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors"
-            title="Download"
-            aria-label="Download material"
-          >
-            <Download size={18} />
-          </button>
-          <button
-            type="button"
-            disabled={loadingFavId === material.id}
-            onClick={async (e) => {
-              e.preventDefault();
-              setLoadingFavId(material.id);
-              await toggleFavorite(material.id);
-              setLoadingFavId(null);
-            }}
-            className={`p-2 sm:px-3 sm:py-2 rounded-xl border font-bold flex items-center justify-center transition-all ${
-              user?.favorites?.includes(material.id)
-                ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/30"
-                : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white"
-            } ${loadingFavId === material.id ? "opacity-50 cursor-not-allowed" : ""}`}
-            title={user?.favorites?.includes(material.id) ? "Remove from favorites" : "Save to favorites"}
-          >
-            {loadingFavId === material.id ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Bookmark 
-                size={18} 
-                fill={user?.favorites?.includes(material.id) ? "currentColor" : "none"} 
-              />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              handleShare(material);
-            }}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl border border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center min-w-[40px]"
-            title="Share material"
-          >
-            <Share2 size={18} />
-          </button>
-        </div>
+        {!adminCompact && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleViewClick}
+              className="flex-1 py-2 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-200 font-bold hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+            >
+              View <ExternalLink size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadClick}
+              className="hidden md:flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+              title="Download"
+              aria-label="Download material"
+            >
+              <Download size={18} />
+            </button>
+            <button
+              type="button"
+              disabled={loadingFavId === material.id}
+              onClick={async (e) => {
+                e.preventDefault();
+                setLoadingFavId(material.id);
+                await toggleFavorite(material.id);
+                setLoadingFavId(null);
+              }}
+              className={`p-2 sm:px-3 sm:py-2 rounded-xl border font-bold flex items-center justify-center transition-all ${
+                user?.favorites?.includes(material.id)
+                  ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/30"
+                  : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white"
+              } ${loadingFavId === material.id ? "opacity-50 cursor-not-allowed" : ""}`}
+              title={user?.favorites?.includes(material.id) ? "Remove from favorites" : "Save to favorites"}
+            >
+              {loadingFavId === material.id ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Bookmark 
+                  size={18} 
+                  fill={user?.favorites?.includes(material.id) ? "currentColor" : "none"} 
+                />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                handleShare(material);
+              }}
+              className="p-2 sm:px-3 sm:py-2 rounded-xl border border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center min-w-[40px]"
+              title="Share material"
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
+        )}
 
         {/* Unified Card Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-1 mt-4 pt-3 border-t border-zinc-800/50 text-[11px] sm:text-xs text-zinc-400">
+        <div className={`flex flex-wrap items-center justify-between gap-y-2 gap-x-1 text-[11px] sm:text-xs text-zinc-400 ${adminCompact ? 'mt-1' : 'mt-4 pt-3 border-t border-zinc-800/50'}`}>
           <span className="flex items-center gap-1 text-zinc-300">
             <User size={12} /> by {
               material.uploadedBy?.split(' ')[0] || 

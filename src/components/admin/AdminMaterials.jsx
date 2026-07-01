@@ -1,5 +1,6 @@
 import { FileText, Code, Star, Edit3, Eye, Pencil, CheckCircle, XCircle, Download, Clock, Search, Trash2 } from "lucide-react";
 import CustomSelect from "./CustomSelect";
+import MaterialCard from "../MaterialCard"; // 🚨 Yeh line zaroor add karein
 
 export default function AdminMaterials({
   materialFilter, setMaterialFilter,
@@ -170,18 +171,19 @@ export default function AdminMaterials({
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 lg:pl-10">
-                      <a href={material.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold hover:bg-white/10 hover:text-white transition-colors">
-                        <Eye size={14} /> View
+                    {/* 📱 ULTRA COMPACT ROW FOR PENDING BUTTONS */}
+                    <div className="flex gap-1.5 w-full lg:w-auto mt-2.5 lg:mt-0 lg:pl-4">
+                      <a href={material.link} target="_blank" rel="noopener noreferrer" className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] sm:text-[11px] font-bold hover:bg-white/10 hover:text-white transition-colors">
+                        <Eye size={12} /> View
                       </a>
-                      <button type="button" onClick={() => handleEditClick(material)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold hover:bg-white/10 hover:text-white transition-colors">
-                        <Pencil size={14} /> Edit
+                      <button type="button" onClick={() => handleEditClick(material)} className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] sm:text-[11px] font-bold hover:bg-white/10 hover:text-white transition-colors">
+                        <Pencil size={12} /> Edit
                       </button>
-                      <button type="button" onClick={() => approveMaterial(material.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-colors">
-                        <CheckCircle size={14} /> Approve
+                      <button type="button" onClick={() => approveMaterial(material.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] sm:text-[11px] font-bold hover:bg-emerald-500/20 transition-colors">
+                        <CheckCircle size={12} /> Approve
                       </button>
-                      <button type="button" onClick={() => setItemToReject(material.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold hover:bg-rose-500/20 transition-colors">
-                        <XCircle size={14} /> Reject
+                      <button type="button" onClick={() => setItemToReject(material.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] sm:text-[11px] font-bold hover:bg-rose-500/20 transition-colors">
+                        <XCircle size={12} /> Reject
                       </button>
                     </div>
                   </div>
@@ -191,77 +193,54 @@ export default function AdminMaterials({
           : filteredMaterials.slice(0, visibleMaterialsCount).map((material, index) => {
               const isLastItem = index === Math.min(visibleMaterialsCount, filteredMaterials.length) - 1;
               const ref = isLastItem ? lastMaterialRef : null;
-              const semester = getSemesterById(material.semId);
-              const subject = getSubjectById(material.subjectId);
-              const isMatSelected = selectedMaterials.includes(material.id);
 
               return (
                 <div
                   key={material.id}
                   ref={ref}
-                  onTouchStart={() => handleMatTouchStart(material.id)}
-                  onTouchEnd={handleMatTouchEnd}
-                  onClick={(e) => handleMaterialItemClick(material, e)}
                   style={{ transform: 'translateZ(0)', willChange: 'transform' }}
-                  className={`glass-card p-5 rounded-2xl hover:border-white/20 transition-all duration-300 group select-none ${
-                    isMatSelected ? 'border-[#FFD700] bg-[#FFD700]/10 scale-[0.99]' : ''
-                  }`}
+                  className="relative"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="glass-card p-5 rounded-2xl hover:border-white/20 transition-all duration-300">
+                    {/* 1. Original User Card (Sirf metadata dikhega kyunki buttons hide kar diye) */}
+                    <MaterialCard 
+                      material={material}
+                      getSubjectById={getSubjectById}
+                      adminCompact={true}
+                    />
 
-                    <div className="flex-1 flex items-start gap-4 min-w-0">
-                      {isMaterialMultiMode && (
-                        <div className={`w-5 h-5 rounded-lg mt-3 flex items-center justify-center border transition-all flex-shrink-0 ${
-                          isMatSelected ? 'bg-[#FFD700] border-[#FFD700]' : 'border-white/20'
-                        }`}>
-                          {isMatSelected && <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                        </div>
+                    {/* 2. Admin Only: View-Edit-Delete Row */}
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800/50">
+                      {/* VIEW BUTTON */}
+                      <a 
+                        href={material.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="flex-1 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-bold hover:bg-blue-500/20 flex items-center justify-center gap-1.5 transition-all"
+                      >
+                        <Eye size={14} /> View
+                      </a>
+
+                      {/* EDIT BUTTON */}
+                      <button 
+                        type="button" 
+                        onClick={() => handleEditClick(material)} 
+                        className="flex-1 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold hover:bg-amber-500/20 flex items-center justify-center gap-1.5 transition-all"
+                      >
+                        <Pencil size={14} /> Edit
+                      </button>
+
+                      {/* DELETE BUTTON */}
+                      {CREATOR_EMAILS.includes(user?.email) && (
+                        <button 
+                          type="button" 
+                          onClick={() => setItemToDelete(material.id)} 
+                          className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold hover:bg-rose-500/20 flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
                       )}
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-4">
-                          <div className={`p-3 rounded-2xl flex-shrink-0 ${
-                            material.type === 'Notes' ? 'bg-blue-500/10 text-blue-400' :
-                            material.type === 'Practicals' ? 'bg-green-500/10 text-green-400' :
-                            material.type === 'IMP' ? 'bg-yellow-500/10 text-yellow-400' :
-                            material.type === 'Assignment' ? 'bg-purple-500/10 text-purple-400' :
-                            'bg-emerald-500/10 text-emerald-400'
-                          }`}>
-                            {material.type === 'Notes' ? <FileText size={24} /> :
-                             material.type === 'Practicals' ? <Code size={24} /> :
-                             material.type === 'IMP' ? <Star size={24} /> :
-                             material.type === 'Assignment' ? <Edit3 size={24} /> :
-                             <FileText size={24} />}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-white text-base group-hover:text-[#FFD700] transition-colors truncate">{material.title}</h3>
-
-                            <div className="flex items-center flex-wrap gap-2 text-[11px] font-bold text-white/50 mt-2 uppercase tracking-wider">
-                              <span className="bg-white/5 border border-white/5 px-2 py-1 rounded-lg">{semester?.name}</span>
-                              <span className="bg-white/5 border border-white/5 px-2 py-1 rounded-lg">{subject?.name}</span>
-                              <span className="bg-white/5 border border-white/5 px-2 py-1 rounded-lg text-white/70">{material.type}</span>
-                            </div>
-
-                            <div className="flex items-center flex-wrap gap-4 mt-3 text-xs text-white/40 font-medium">
-                              <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md"><Eye size={14} /> {material.views || 0} views</span>
-                              <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md"><Download size={14} /> {material.downloads || 0} dls</span>
-                              <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md"><Clock size={14} /> {material.date ? new Date(typeof material.date === 'object' && material.date.toDate ? material.date.toDate() : material.date).toLocaleDateString() : 'Just now'}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                     </div>
-
-                    {!isMaterialMultiMode && (
-                      <div className="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0 relative z-10">
-                        <a href={material.link} target="_blank" rel="noopener noreferrer" className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 font-bold hover:bg-blue-500/20 transition-all text-sm">View</a>
-                        <button type="button" onClick={() => handleEditClick(material)} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/20 transition-all text-sm">Edit</button>
-                        {CREATOR_EMAILS.includes(user?.email) && (
-                          <button type="button" onClick={() => setItemToDelete(material.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold hover:bg-rose-500/20 transition-all text-sm">Delete</button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               );

@@ -62,7 +62,7 @@ const Home = () => {
     setLoadingCard(null);
   }, [location.pathname]);
   
-  // Get recent approved materials from the global context
+  // 🌟 CONFIG: Max 5 recent approved materials requested
   const recentMaterials = getRecentMaterials(5);
 
   const semestersVm = semesters.map((s) => ({
@@ -73,7 +73,7 @@ const Home = () => {
     academicYear: s.id === '1' || s.id === '2' ? '2025-26' : s.id === '3' ? '2026-27' : '',
   }));
 
-  // Use cached recent materials
+  // 🌟 CONFIG: Limit cache render to exactly 5 elements
   const recentApproved = recentMaterials.slice(0, 5);
   
   // Helper function to check if material is new (within 24 hours)
@@ -107,10 +107,9 @@ const Home = () => {
     else if (viewLink.includes("drive.google.com/open?id=")) {
       // Extract file ID from the legacy URL format
       const urlObj = new URL(viewLink);
-      const fileId = urlObj.searchParams.get("id");
-      if (fileId) {
+      const fileId = urlObj.searchParams.get("id");       if (fileId) {
         return `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
-      }
+      } Jesse
     }
     // Pattern 3: Extract ID from URL between /d/ and /view (as specified in requirements)
     else if (viewLink.includes("/d/") && viewLink.includes("/view")) {
@@ -124,12 +123,6 @@ const Home = () => {
     return viewLink;
   };
 
-  // 🚀 PROGRESSIVE RENDERING
-  // No more "wait for everything, then swap the whole page". The static
-  // shell (header, titles) renders immediately on first paint. Each data
-  // section (Semesters grid, Materials list) independently shows its own
-  // tiny skeleton ONLY until ITS data arrives, then renders for real —
-  // without waiting on the other section.
   return (
     <div className="p-5 pt-10 max-w-md mx-auto">
       {/* Header Section */}
@@ -229,6 +222,7 @@ const Home = () => {
       ) : (
         <div className="space-y-4">
           {recentApproved && recentApproved.length > 0 ? (
+            // Maps exactly 5 recent materials
             recentApproved.map((m) => (
               <MaterialCard 
                 key={m.id} 
@@ -257,6 +251,16 @@ const Home = () => {
               )}
             </div>
           )}
+
+          {/* 🌟 HERE IS THE BULLETPROOF TEXT LINK OUTSIDE BREAKETS */}
+          <div className="text-center pt-2 pb-6">
+            <Link 
+              to="/library" 
+              className="inline-block text-xs font-bold text-[#FFD700] hover:text-white hover:scale-105 active:scale-95 transition-all tracking-wide"
+            >
+              Click to Explore more &rarr;
+                </Link>
+          </div>
         </div>
       )}
     </div>

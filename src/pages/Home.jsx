@@ -63,7 +63,7 @@ const Home = () => {
   }, [location.pathname]);
   
   // Get recent approved materials from the global context
-  const recentMaterials = getRecentMaterials(10);
+  const recentMaterials = getRecentMaterials(5);
 
   const semestersVm = semesters.map((s) => ({
     id: s.id,
@@ -74,7 +74,7 @@ const Home = () => {
   }));
 
   // Use cached recent materials
-  const recentApproved = recentMaterials.slice(0, 10);
+  const recentApproved = recentMaterials.slice(0, 5);
   
   // Helper function to check if material is new (within 24 hours)
   const isNewMaterial = (material) => {

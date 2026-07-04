@@ -1,11 +1,74 @@
-import { CloudUpload, Plus, X, File, CheckCircle, Loader2 } from "lucide-react";
+import { CloudUpload, Plus, X, File, CheckCircle, Loader2, RotateCw } from "lucide-react";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { useApp } from "../context/AppContext";
 import { useNavigate } from "react-router-dom";
 
-const defaultUploadMemory = { title: "", semester: "", subject: "", type: "Notes", files: [] };
+const defaultUploadMemory = { title: "", semester: "", subject: "", type: "Notes", files: [], fileProgress: {}, fileLinks: {}, fileStatus: {} };
 let uploadMemory = { ...defaultUploadMemory };
+
+// 🌟 Module-level (not per-render) so in-flight background uploads keep
+// running — and can still be cancelled/awaited — even if the Upload page
+// unmounts and remounts (e.g. the user switches tabs mid-upload).
+const uploadControllers = new Map(); // entry.id -> AbortController
+const uploadPromises = new Map(); // entry.id -> Promise<{fileUrl, fileId, fileName}>
+
+let fileIdCounter = 0;
+const generateFileId = () =>
+  (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `file-${Date.now()}-${fileIdCounter++}`;
+
+// 🔵 Compact per-file progress ring shown next to each selected file.
+// - uploading: circular SVG progress ring with the live percentage
+// - done: green checkmark badge
+// - error: red, clickable retry icon
+const FileProgressRing = ({ status, progress, onRetry }) => {
+  const size = 22;
+  const strokeWidth = 2.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  if (status === "done") {
+    return (
+      <div className="flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
+        <CheckCircle size={size} className="text-emerald-400" />
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <button
+        type="button"
+        onClick={onRetry}
+        title="Retry upload"
+        className="flex items-center justify-center flex-shrink-0 text-red-400 hover:text-red-300 transition-colors"
+        style={{ width: size, height: size }}
+      >
+        <RotateCw size={size - 6} />
+      </button>
+    );
+  }
+
+  const offset = circumference - (Math.min(progress, 100) / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.15)" strokeWidth={strokeWidth} fill="none" />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          stroke="#FFD700" strokeWidth={strokeWidth} fill="none"
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.15s linear" }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[7px] font-bold text-white/90">
+        {Math.round(progress)}
+      </span>
+    </div>
+  );
+};
 
 // 🚨 CUSTOM SELECT
 const CustomSelect = ({ value, onChange, options, placeholder, emptyMessage = "No options available" }) => {
@@ -50,11 +113,10 @@ const CustomSelect = ({ value, onChange, options, placeholder, emptyMessage = "N
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`px-4 py-2.5 cursor-pointer transition-all text-sm relative flex items-center ${
-                    String(value) === String(opt.value) 
-                      ? 'bg-[#FFD700]/15 text-[#FFD700] font-bold' 
+                  className={`px-4 py-2.5 cursor-pointer transition-all text-sm relative flex items-center ${String(value) === String(opt.value)
+                      ? 'bg-[#FFD700]/15 text-[#FFD700] font-bold'
                       : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <span className="block whitespace-nowrap pr-6">{opt.label}</span>
                   {String(value) === String(opt.value) && (
@@ -77,7 +139,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, emptyMessage = "N
 };
 
 export default function Upload() {
-  const { semesters, subjects, user, isAdmin, startGlobalUpload } = useApp();
+  const { semesters, subjects, user, isAdmin, uploadFileToDrive, finalizeMaterialsSubmission } = useApp();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState(() => uploadMemory.title);
@@ -86,14 +148,19 @@ export default function Upload() {
   const [type, setType] = useState(() => uploadMemory.type);
   const [selectedFiles, setSelectedFiles] = useState(() => uploadMemory.files);
 
+  // Per-file background upload tracking, keyed by each entry's generated id.
+  const [fileProgress, setFileProgress] = useState(() => uploadMemory.fileProgress || {});
+  const [fileLinks, setFileLinks] = useState(() => uploadMemory.fileLinks || {});
+  const [fileStatus, setFileStatus] = useState(() => uploadMemory.fileStatus || {});
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const dragDepthRef = useRef(0);
 
   useEffect(() => {
-    uploadMemory = { title, semester, subject, type, files: selectedFiles };
-  }, [title, semester, subject, type, selectedFiles]);
+    uploadMemory = { title, semester, subject, type, files: selectedFiles, fileProgress, fileLinks, fileStatus };
+  }, [title, semester, subject, type, selectedFiles, fileProgress, fileLinks, fileStatus]);
 
   useEffect(() => {
     if (isAdmin === true) {
@@ -117,14 +184,71 @@ export default function Upload() {
     setSubject("");
     setType("Notes");
     setSelectedFiles([]);
+    setFileProgress({});
+    setFileLinks({});
+    setFileStatus({});
+    uploadControllers.clear();
+    uploadPromises.clear();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
+  // 🚀 Fires the moment a file is added — starts uploading to Drive in the
+  // background while the user keeps filling out the rest of the form.
+  const startBackgroundUpload = (entry) => {
+    const controller = new AbortController();
+    uploadControllers.set(entry.id, controller);
+
+    setFileStatus((prev) => ({ ...prev, [entry.id]: "uploading" }));
+    setFileProgress((prev) => ({ ...prev, [entry.id]: 0 }));
+
+    const dotIndex = entry.file.name.lastIndexOf(".");
+    const extension = dotIndex > -1 ? entry.file.name.substring(dotIndex) : "";
+    const baseName = dotIndex > -1 ? entry.file.name.substring(0, dotIndex) : entry.file.name;
+
+    // The final title/semester/subject may not be filled in yet at this
+    // point, so the Drive filename is tagged with the student + timestamp
+    // instead. The real metadata gets attached to the Firestore record
+    // later, at submit time, via finalizeMaterialsSubmission.
+    const studentTag = (user?.displayName || user?.email?.split("@")[0] || "Student")
+      .toString().trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ");
+    const cleanBaseName = baseName.toString().trim().replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ");
+    const draftFileName = `${studentTag}-${Date.now()}-${cleanBaseName}${extension}`;
+
+    const uploadPromise = uploadFileToDrive(
+      entry.file,
+      draftFileName,
+      (progress) => setFileProgress((prev) => ({ ...prev, [entry.id]: progress })),
+      controller.signal
+    )
+      .then((uploaded) => {
+        uploadControllers.delete(entry.id);
+        setFileLinks((prev) => ({ ...prev, [entry.id]: uploaded }));
+        setFileStatus((prev) => ({ ...prev, [entry.id]: "done" }));
+        return uploaded;
+      })
+      .catch((error) => {
+        uploadControllers.delete(entry.id);
+        if (error?.name !== "AbortError") {
+          console.error("Background upload failed:", error);
+          setFileStatus((prev) => ({ ...prev, [entry.id]: "error" }));
+        }
+        throw error;
+      });
+
+    uploadPromises.set(entry.id, uploadPromise);
+    // Avoid noisy "unhandled rejection" logs for cancelled/failed uploads
+    // that nothing is awaiting yet — handleSubmit awaits the real promise
+    // later, if and when it needs to.
+    uploadPromise.catch(() => { });
+  };
+
   const appendFiles = (files) => {
     if (!files.length) return;
-    setSelectedFiles((prevFiles) => [...prevFiles, ...files]);
+    const newEntries = files.map((file) => ({ id: generateFileId(), file }));
+    setSelectedFiles((prevFiles) => [...prevFiles, ...newEntries]);
+    newEntries.forEach((entry) => startBackgroundUpload(entry));
   };
 
   const handleFileSelect = (e) => {
@@ -132,8 +256,24 @@ export default function Upload() {
     e.target.value = "";
   };
 
-  const removeFile = (indexToRemove) => {
-    setSelectedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+  const retryUpload = (id) => {
+    const entry = selectedFiles.find((f) => f.id === id);
+    if (!entry) return;
+    startBackgroundUpload(entry);
+  };
+
+  const removeFile = (id) => {
+    const controller = uploadControllers.get(id);
+    if (controller) {
+      controller.abort();
+      uploadControllers.delete(id);
+    }
+    uploadPromises.delete(id);
+
+    setSelectedFiles((prev) => prev.filter((entry) => entry.id !== id));
+    setFileProgress((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setFileLinks((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setFileStatus((prev) => { const next = { ...prev }; delete next[id]; return next; });
   };
 
   const handleDragEnter = (e) => {
@@ -173,8 +313,33 @@ export default function Upload() {
     setIsSubmitting(true);
 
     try {
-      const result = await startGlobalUpload(
-        selectedFiles,
+      // Wait-and-fire: hold submission until every selected file has either
+      // resolved a link already, or its in-flight background upload settles.
+      const settledUploads = await Promise.all(
+        selectedFiles.map(async (entry) => {
+          if (fileLinks[entry.id]) return fileLinks[entry.id];
+          const pending = uploadPromises.get(entry.id);
+          if (!pending) return null;
+          try {
+            return await pending;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const failedCount = settledUploads.filter((u) => !u).length;
+      if (failedCount > 0) {
+        toast.error(
+          failedCount === 1
+            ? "One file failed to upload. Retry or remove it before submitting."
+            : `${failedCount} files failed to upload. Retry or remove them before submitting.`
+        );
+        return;
+      }
+
+      const result = await finalizeMaterialsSubmission(
+        settledUploads,
         { title, semester, subject, type },
         user?.displayName || user?.email?.split('@')[0] || "Student",
         user?.email
@@ -197,7 +362,7 @@ export default function Upload() {
         <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">Contribute</h1>
         <p className="text-white/55 text-xs mt-1">Share notes, practicals, and assignments.</p>
       </div>
-      
+
       <form className="glass-card p-4" onSubmit={handleSubmit}>
         {/* User Identity Banner (Updated with Profile Pic) */}
         <div className="mb-5 glass-card p-3 flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl">
@@ -243,7 +408,7 @@ export default function Upload() {
           </div>
           <div>
             <label className="block text-[11px] font-bold text-white/70 mb-2">Type *</label>
-            <CustomSelect value={type} onChange={(val) => setType(val)} placeholder="Select Type" options={[ { value: "Notes", label: "Notes" }, { value: "Practicals", label: "Practicals" }, { value: "IMP", label: "IMP" }, { value: "Assignment", label: "Assignment" } ]} />
+            <CustomSelect value={type} onChange={(val) => setType(val)} placeholder="Select Type" options={[{ value: "Notes", label: "Notes" }, { value: "Practicals", label: "Practicals" }, { value: "IMP", label: "IMP" }, { value: "Assignment", label: "Assignment" }]} />
           </div>
         </div>
 
@@ -271,10 +436,17 @@ export default function Upload() {
           </div>
           {selectedFiles.length > 0 && (
             <div className="mt-3 space-y-2">
-              {selectedFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between glass-card bg-white/5 p-2.5 px-3 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="flex items-center gap-3 overflow-hidden"><File size={14} className="text-[#FFD700] flex-shrink-0" /><span className="text-xs text-white/80 truncate">{file.name}</span></div>
-                  <button type="button" onClick={() => removeFile(index)} className="text-white/40 hover:text-red-400 p-1 transition-colors"><X size={14} /></button>
+              {selectedFiles.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between glass-card bg-white/5 p-2.5 px-3 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center gap-3 overflow-hidden"><File size={14} className="text-[#FFD700] flex-shrink-0" /><span className="text-xs text-white/80 truncate">{entry.file.name}</span></div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <FileProgressRing
+                      status={fileStatus[entry.id] || "uploading"}
+                      progress={fileProgress[entry.id] ?? 0}
+                      onRetry={() => retryUpload(entry.id)}
+                    />
+                    <button type="button" onClick={() => removeFile(entry.id)} className="text-white/40 hover:text-red-400 p-1 transition-colors"><X size={14} /></button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -282,7 +454,7 @@ export default function Upload() {
         </div>
 
         <button type="submit" disabled={!isFormValid || isSubmitting} className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-300 ${isFormValid && !isSubmitting ? "bg-[#FFD700] text-black shadow-[0_0_15px_rgba(255,215,0,0.3)] hover:scale-[1.02]" : "bg-white/10 text-white/30 cursor-not-allowed"}`}>
-          {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><CloudUpload size={16} /> Submit for Approval</>}
+          {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Uploading & Submitting...</> : <><CloudUpload size={16} /> Submit for Approval</>}
         </button>
       </form>
     </div>

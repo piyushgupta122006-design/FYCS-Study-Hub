@@ -19,6 +19,17 @@ export const useApp = () => {
 
 const CREATOR_EMAILS = ["rishiuttamsahu@gmail.com", "piyushgupta122006@gmail.com"];
 
+// 📤 Shared Drive upload endpoint + filename sanitizer, used both by the
+// legacy `startGlobalUpload` flow and the newer per-file background
+// upload flow (`uploadFileToDrive`) below.
+const DRIVE_UPLOAD_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzc1QTM0qx8OPGs16QRXbtEevBgik4pceDjLpKKS98f8DBD7A8yszDjmibQb7cTQBs8tQ/exec";
+
+const sanitizeFileNamePart = (value) => (value || "")
+  .toString()
+  .trim()
+  .replace(/[\\/:*?"<>|]+/g, "-")
+  .replace(/\s+/g, " ");
+
 // Provider Component
 export const AppProvider = ({ children }) => {
   // State for materials and subjects from Firestore
@@ -30,13 +41,13 @@ export const AppProvider = ({ children }) => {
     { id: "3", name: "Semester 3", active: true },
     { id: "4", name: "Semester 4", active: true }
   ]);
-  
+
   // Authentication state
   const [user, setUser] = useState(null);
-  
+
   // Users state from Firestore
   const [users, setUsers] = useState([]);
-  
+
   // 🚀 GRANULAR LOADING STATES
   // Previously a single `loading` flag waited for materials + subjects +
   // auth to ALL resolve before ANY page could render anything. That meant
@@ -59,7 +70,7 @@ export const AppProvider = ({ children }) => {
   // before they can render (e.g. Library needs materials + subjects for
   // its filter dropdowns).
   const dataLoading = materialsLoading || subjectsLoading;
-  
+
   // 📱💻 Bi-Device Smart Zoom Logic (Breakpoint: 425px)
   const getIsMobile = () => window.innerWidth <= 425;
 
@@ -94,26 +105,26 @@ export const AppProvider = ({ children }) => {
         setSiteZoom(savedPC ? Number(savedPC) : 100);
       }
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
+
   // User role state (separate from users array for real-time updates)
   const [userRole, setUserRole] = useState(null);
 
   // RBAC - Role-Based Access Control
-  const isAdmin = useMemo(() => 
+  const isAdmin = useMemo(() =>
     CREATOR_EMAILS.includes(user?.email) || userRole === "admin",
     [user?.email, userRole]
   );
 
   // 🌟 NAYA GLOBAL UPLOAD ENGINE 🌟
   const [globalUploadState, setGlobalUploadState] = useState({ uploading: false, current: 0, total: 0, realProgress: 0 });
-  
+
   // 🌟 GLOBAL UPLOAD FORM MEMORY (prevents form clearing on navigation)
   const [uploadFormData, setUploadFormData] = useState({ title: "", semester: "", subject: "", type: "Notes", files: [] });
-  
+
   // Real-time listeners for materials and subjects
   useEffect(() => {
     const unsubscribeMaterials = onSnapshot(
@@ -133,7 +144,7 @@ export const AppProvider = ({ children }) => {
         setMaterialsLoading(false);
       }
     );
-    
+
     const unsubscribeSubjects = onSnapshot(
       collection(db, "subjects"),
       (snapshot) => {
@@ -150,20 +161,20 @@ export const AppProvider = ({ children }) => {
         setSubjectsLoading(false);
       }
     );
-    
+
     return () => {
       unsubscribeMaterials();
       unsubscribeSubjects();
     };
   }, []);
-  
+
   // Real-time listener for users (ONLY FOR ADMIN)
   useEffect(() => {
     if (!isAdmin) {
       setUsers([]);
       return;
     }
-    
+
     const unsubscribeUsers = onSnapshot(
       collection(db, "users"),
       (snapshot) => {
@@ -185,23 +196,23 @@ export const AppProvider = ({ children }) => {
         console.error("Error listening to users: ", error);
       }
     );
-    
+
     return () => unsubscribeUsers();
   }, [isAdmin]);
-  
+
   // Authentication listener with user sync and ban flag
   useEffect(() => {
     let unsubscribeAuth = null;
     let unsubscribeDoc = null;
     let isMounted = true;
-    
+
     const initAuth = async () => {
       try {
         await authReady;
       } catch (err) {
         console.error("Auth persistence setup failed:", err);
       }
-      
+
       if (!isMounted) return;
 
       // Pick up the result of a signInWithRedirect() call (mobile/webview
@@ -218,19 +229,19 @@ export const AppProvider = ({ children }) => {
       }
 
       if (!isMounted) return;
-      
+
       unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
         // Clean up previous doc listener immediately when auth state changes
         if (unsubscribeDoc) {
           unsubscribeDoc();
           unsubscribeDoc = null;
         }
-        
+
         if (firebaseUser) {
           // Set loading true so UI doesn't render home page before fetching user doc
           setAuthLoading(true);
           const userDocRef = doc(db, "users", firebaseUser.uid);
-          
+
           unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data();
@@ -257,7 +268,7 @@ export const AppProvider = ({ children }) => {
                 favorites: [], // Initialize empty favorites array
                 createdAt: serverTimestamp() // Use serverTimestamp for consistency
               };
-              
+
               try {
                 await setDoc(userDocRef, newUser);
                 setUser({
@@ -270,7 +281,7 @@ export const AppProvider = ({ children }) => {
                 setUserRole("student");
               } catch (err) {
                 console.error("Error creating user doc:", err);
-                
+
                 // 🚨 FIX 2: Set user state anyway! Agar database block bhi kare, 
                 // toh user loop mein na fase aur kam se kam login ho jaye.
                 setUser({
@@ -281,7 +292,7 @@ export const AppProvider = ({ children }) => {
                   id: firebaseUser.uid
                 });
                 setUserRole("student");
-                
+
                 toast.error("Connected, but database profile creation delayed.");
               } finally {
                 setAuthLoading(false);
@@ -300,19 +311,19 @@ export const AppProvider = ({ children }) => {
     };
 
     initAuth();
-    
+
     return () => {
       isMounted = false;
       if (unsubscribeAuth) unsubscribeAuth();
       if (unsubscribeDoc) unsubscribeDoc();
     };
   }, []);
-  
+
   // Derived state - Calculate statistics dynamically
   const stats = useMemo(() => {
     const approvedMaterials = materials.filter(m => (m.status || "").toLowerCase() === 'approved');
     const pendingMaterials = materials.filter(m => (m.status || "").toLowerCase() === 'pending');
-    
+
     return {
       totalViews: approvedMaterials.reduce((sum, material) => sum + (material.views || 0), 0),
       totalDownloads: approvedMaterials.reduce((sum, material) => sum + (material.downloads || 0), 0),
@@ -375,7 +386,7 @@ export const AppProvider = ({ children }) => {
       const elapsed = Date.now() - popupOpenedAt;
       const looksLikeDisguisedStorageBlock =
         (error?.code === "auth/popup-closed-by-user" ||
-         error?.code === "auth/cancelled-popup-request") &&
+          error?.code === "auth/cancelled-popup-request") &&
         elapsed > REALISTIC_INTERACTION_MS;
 
       if (looksLikeDisguisedStorageBlock) {
@@ -403,7 +414,7 @@ export const AppProvider = ({ children }) => {
   const refreshDriveToken = async () => {
     return { success: false, error: "Google Drive token is no longer required or supported." };
   };
-  
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -413,32 +424,32 @@ export const AppProvider = ({ children }) => {
       return { success: false, error: error.message };
     }
   };
-  
+
   // Action Functions for Firestore
-  
+
   // 1. Add new material
   const addMaterial = async (formData) => {
     try {
       const title = formData.title.trim();
       const subjectId = formData.subjectId;
-      
+
       // Pre-upload check: Query for existing material with same title and subject
       const duplicateQuery = query(
         collection(db, "materials"),
         where("subjectId", "==", subjectId),
         where("title", "==", title)
       );
-      
+
       const duplicateSnapshot = await getDocs(duplicateQuery);
-      
+
       // Block duplicates
       if (!duplicateSnapshot.empty) {
-        return { 
-          success: false, 
-          error: "⚠️ Duplicate Found: A file with this Name and Subject already exists!" 
+        return {
+          success: false,
+          error: "⚠️ Duplicate Found: A file with this Name and Subject already exists!"
         };
       }
-      
+
       // Allow unique: Proceed with upload
       const newMaterial = {
         title: title,
@@ -453,7 +464,7 @@ export const AppProvider = ({ children }) => {
         date: serverTimestamp(), // Use Firestore timestamp
         createdAt: serverTimestamp() // Add creation timestamp for sorting
       };
-      
+
       const docRef = await addDoc(collection(db, "materials"), newMaterial);
       return { success: true, id: docRef.id };
     } catch (error) {
@@ -470,6 +481,160 @@ export const AppProvider = ({ children }) => {
     reader.onload = () => resolve(reader.result.split(',')[1]);
     reader.onerror = error => reject(error);
   });
+
+  // 📤 BACKGROUND FILE UPLOAD (per-file, decoupled from the materials form)
+  // Uploads a single file to Drive via the Apps Script endpoint and resolves
+  // with its final URL — it does NOT write anything to Firestore. This lets
+  // Upload.jsx fire uploads the instant a file is selected, before the user
+  // has even finished filling in title/semester/subject.
+  // Progress is simulated (the Apps Script endpoint doesn't stream real
+  // upload progress back) using the same ramp curve as the original
+  // bulk-upload flow, so the UX still feels responsive. Supports
+  // cancellation via AbortSignal so an in-flight upload can be stopped if
+  // the user removes the file before it finishes.
+  const uploadFileToDrive = (file, fileName, onProgress, signal) => {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(new DOMException("Upload cancelled", "AbortError"));
+        return;
+      }
+
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        let increment = 0;
+        if (progress < 40) increment = 4.0;
+        else if (progress < 75) increment = 2.0;
+        else if (progress < 90) increment = 0.5;
+        else if (progress < 99) increment = 0.1;
+        progress = Math.min(99, progress + increment);
+        onProgress?.(progress);
+      }, 100);
+
+      const cleanup = () => clearInterval(progressInterval);
+      const onAbort = () => {
+        cleanup();
+        reject(new DOMException("Upload cancelled", "AbortError"));
+      };
+      signal?.addEventListener("abort", onAbort);
+
+      toBase64(file)
+        .then((base64Data) => {
+          if (signal?.aborted) throw new DOMException("Upload cancelled", "AbortError");
+          return fetch(DRIVE_UPLOAD_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ base64: base64Data, name: fileName, mimeType: file.type }),
+          });
+        })
+        .then((response) => response.json())
+        .then((result) => {
+          signal?.removeEventListener("abort", onAbort);
+          cleanup();
+          if (signal?.aborted) throw new DOMException("Upload cancelled", "AbortError");
+          if (result.status === "success") {
+            onProgress?.(100);
+            resolve({ fileUrl: result.fileUrl, fileId: result.fileId, fileName });
+          } else {
+            reject(new Error(result.message || "Upload failed"));
+          }
+        })
+        .catch((error) => {
+          signal?.removeEventListener("abort", onAbort);
+          cleanup();
+          reject(error);
+        });
+    });
+  };
+
+  // ✅ FINALIZE SUBMISSION
+  // Takes files that have ALREADY been uploaded to Drive in the background
+  // (via uploadFileToDrive) and creates the corresponding "materials"
+  // records in Firestore, then fires the admin email alert + success toast.
+  // This is effectively the second half of what startGlobalUpload used to
+  // do in one shot, split out so it can run after background uploads finish.
+  const finalizeMaterialsSubmission = async (uploadedFiles, metadata, userName, userEmail) => {
+    let successCount = 0;
+
+    for (const uploaded of uploadedFiles) {
+      try {
+        await addDoc(collection(db, "materials"), {
+          title: metadata.title,
+          semId: metadata.semester,
+          subjectId: metadata.subject,
+          type: metadata.type,
+          link: uploaded.fileUrl,
+          fileId: uploaded.fileId,
+          fileName: uploaded.fileName,
+          status: "Pending",
+          uploadedBy: userName,
+          uploadedByEmail: userEmail,
+          date: new Date().toISOString(),
+          createdAt: serverTimestamp()
+        });
+        successCount++;
+      } catch (error) {
+        console.error("Error saving material record:", error);
+        toast.error(`Failed to save ${uploaded.fileName || "a file"}`);
+      }
+    }
+
+    if (successCount > 0) {
+      const emailAccessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
+      const subName = subjects.find(s => String(s.id) === String(metadata.subject))?.name || `Sub-${metadata.subject}`;
+
+      if (emailAccessKey) {
+        try {
+          const emailMessage = `A new student just uploaded materials to the Study Hub!\n\n👤 Student Name: ${userName || 'Student'}\n📧 Email: ${userEmail || 'No Email'}\n📚 Subject: ${subName || 'Unknown'}\n📁 Files Uploaded: ${successCount} document(s)\n\nPlease log in to the Admin Dashboard to Review and Approve.`;
+
+          fetch('https://api.web3forms.com/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              access_key: emailAccessKey,
+              subject: '🚨 FYCS Hub Alert: New Upload Pending!',
+              from_name: 'Study Hub System',
+              message: emailMessage
+            })
+          }).catch((err) => console.log('Email alert silently failed', err));
+        } catch (error) {
+          console.error('Alert Engine Error:', error);
+        }
+      } else {
+        console.warn('VITE_WEB3FORMS_ACCESS_KEY is not set; admin email alert skipped.');
+      }
+
+      toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-in fade-in slide-in-from-top-4' : 'animate-out fade-out slide-out-to-right-8'} max-w-sm w-full glass-card bg-[#0c0c0e]/90 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all`}>
+          <div className="absolute top-0 left-0 w-1 bg-[#FFD700] h-full shadow-[0_0_15px_#FFD700]"></div>
+
+          <div className="flex-1 w-0 p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 pt-0.5">
+                <div className="bg-[#FFD700]/20 p-2 rounded-full">
+                  <CheckCircle className="h-5 w-5 text-[#FFD700]" />
+                </div>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-bold text-white tracking-tight">Upload Successful!</p>
+                <p className="mt-1 text-[11px] text-white/50 leading-relaxed">
+                  {successCount} files are now pending for admin review.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex border-l border-white/10">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      ), { duration: 5000 });
+    }
+
+    return { success: successCount > 0, successCount };
+  };
 
   const startGlobalUpload = async (filesToUpload, metadata, userName, userEmail) => {
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzc1QTM0qx8OPGs16QRXbtEevBgik4pceDjLpKKS98f8DBD7A8yszDjmibQb7cTQBs8tQ/exec";
@@ -615,7 +780,7 @@ export const AppProvider = ({ children }) => {
   // 2. Approve material (Pending → Approved)
   const approveMaterial = async (id) => {
     try {
-      await updateDoc(doc(db, "materials", id), { 
+      await updateDoc(doc(db, "materials", id), {
         status: "Approved",
         approvedAt: serverTimestamp()
       });
@@ -660,7 +825,7 @@ export const AppProvider = ({ children }) => {
         icon: icon || "Book", // Default icon
         createdAt: new Date() // Useful for sorting
       };
-      
+
       const docRef = await addDoc(collection(db, "subjects"), newSubject);
       return { success: true, id: docRef.id };
     } catch (error) {
@@ -732,15 +897,15 @@ export const AppProvider = ({ children }) => {
   const getSubjectsBySemester = (semId) => {
     return subjects.filter(subject => Number(subject.semId) === Number(semId));
   };
-  
+
   // State for tracking if admin is viewing reports
   const [isViewingReports, setIsViewingReports] = useState(false);
-  
+
   // Function to set viewing reports status
   const setViewingReports = (status) => {
     setIsViewingReports(status);
   };
-  
+
   // Toggle favorite function
   const toggleFavorite = async (materialId) => {
     if (!user) {
@@ -750,10 +915,10 @@ export const AppProvider = ({ children }) => {
 
     const currentFavorites = user.favorites || [];
     const isFavorited = currentFavorites.includes(materialId);
-    
+
     // Calculate new favorites array
-    const newFavorites = isFavorited 
-      ? currentFavorites.filter(id => id !== materialId) 
+    const newFavorites = isFavorited
+      ? currentFavorites.filter(id => id !== materialId)
       : [...currentFavorites, materialId];
 
     // OPTIMISTIC UPDATE: Update local state instantly for snappy UI
@@ -765,7 +930,7 @@ export const AppProvider = ({ children }) => {
       await updateDoc(userRef, {
         favorites: isFavorited ? arrayRemove(materialId) : arrayUnion(materialId)
       });
-      
+
       toast.success(isFavorited ? "Removed from favorites" : "Saved to favorites!");
       return { success: true };
     } catch (error) {
@@ -776,7 +941,7 @@ export const AppProvider = ({ children }) => {
       return { success: false, error: error.message };
     }
   };
-  
+
   // Context value
   const contextValue = {
     // State
@@ -794,15 +959,15 @@ export const AppProvider = ({ children }) => {
     dataLoading,
     siteZoom,
     updateSiteZoom,
-    
+
     // RBAC
     isAdmin,
-    
+
     // Authentication functions
     login,
     logout,
     refreshDriveToken,
-    
+
     // Action Functions
     addMaterial,
     approveMaterial,
@@ -810,7 +975,7 @@ export const AppProvider = ({ children }) => {
     deleteMaterial,
     addSubject,
     incrementView,
-    
+
     // Utility Functions
     getSubjectById,
     getSemesterById,
@@ -820,14 +985,16 @@ export const AppProvider = ({ children }) => {
     getApprovedMaterials,
     getRecentMaterials,
     getSubjectsBySemester,
-    
+
     // Favorites Function
     toggleFavorite,
     // Global Upload Engine
     globalUploadState,
     uploadFormData,
     setUploadFormData,
-    startGlobalUpload
+    startGlobalUpload,
+    uploadFileToDrive,
+    finalizeMaterialsSubmission
   };
 
   return (

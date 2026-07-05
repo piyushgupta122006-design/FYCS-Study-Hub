@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from "react";
-import { doc, setDoc, increment, arrayUnion, getDoc } from "firebase/firestore";
+import { doc, setDoc, increment, arrayUnion } from "firebase/firestore";
 import { db } from "./firebase";
 import { Bot, X, Loader2 } from "lucide-react";
 import BrainCircuitIcon from "./components/AnimatedIcons";

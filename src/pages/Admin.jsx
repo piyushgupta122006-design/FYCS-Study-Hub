@@ -100,8 +100,6 @@ export default function Admin() {
   const [notificationMessage, setNotificationMessage] = useState("");
   const [sentNotifications, setSentNotifications] = useState([]);
   const [isSending, setIsSending] = useState(false);
-  const [reports, setReports] = useState([]);
-  const [reportsLoading, setReportsLoading] = useState(true);
 
   // 🌟 BULK ACTIONS LOGIC 🌟
   const togglePendingSelection = (id) => {
@@ -209,16 +207,13 @@ export default function Admin() {
 
   // 4. UseEffects
   useEffect(() => {
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'reports'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reportsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setReports(reportsData);
-      setReportsLoading(false);
-      const unresolved = reportsData.filter(r => r.status !== 'resolved').length;
+      const unresolved = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.status !== 'resolved';
+      }).length;
       setUnresolvedCount(unresolved);
-    }, (error) => {
-      console.error('Error listening to reports:', error);
-      setReportsLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -261,10 +256,7 @@ export default function Admin() {
     const statRef = doc(db, 'analytics', today);
     const unsubscribe = onSnapshot(statRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data=docSnap.data();
-        const details=data.visitorDetails||[];
-        const uniqueEmailsToday=new Set(details.map(v=>v.email));
-        setTodayVisitors(uniqueEmailsToday.size);
+        setTodayVisitors(docSnap.data().visitors || 0);
       } else {
         setTodayVisitors(0);
       }
@@ -1207,13 +1199,7 @@ export default function Admin() {
           )}
 
           {/* Reports Tab */}
-          {activeTab === "reports" && (
-            <AdminReports
-              reports={reports}
-              setReports={setReports}
-              loading={reportsLoading}
-            />
-          )}
+          {activeTab === "reports" && <AdminReports />}
 
           {activeTab === "subjects" && (
             <AdminSubjects

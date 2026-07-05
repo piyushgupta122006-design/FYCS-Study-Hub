@@ -300,11 +300,31 @@ export const AppProvider = ({ children }) => {
     };
 
     initAuth();
-    
+
+    // 🛟 SAFETY NET: In rare cases (IndexedDB lock contention across tabs,
+    // private/incognito mode blocking persistence, a stalled network
+    // round-trip) the auth flow above can fail to ever call
+    // setAuthLoading(false), which leaves the skeleton on screen forever
+    // and forces the user to manually refresh. If auth hasn't resolved
+    // within 8s, force it through so the app becomes usable — worst case
+    // it briefly shows the logged-out/Login view until the real auth
+    // state catches up a moment later.
+    const authTimeout = setTimeout(() => {
+      if (isMounted) {
+        setAuthLoading((prev) => {
+          if (prev) {
+            console.warn('Auth took too long to resolve — unblocking UI.');
+          }
+          return false;
+        });
+      }
+    }, 8000);
+
     return () => {
       isMounted = false;
       if (unsubscribeAuth) unsubscribeAuth();
       if (unsubscribeDoc) unsubscribeDoc();
+      clearTimeout(authTimeout);
     };
   }, []);
   

@@ -24,7 +24,7 @@ export default function AdminAnalytics({ safeStats, todayVisitors, uniqueUsers, 
         </div>
         
         <div 
-          onClick={() => navigate("/admin/visitors")}
+          onClick={() => navigate("/admin/analytics/visitors")}
           className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-center hover:border-cyan-500/50 transition-all cursor-pointer hover:bg-zinc-800/50 group"
         >
           <div className="flex items-center justify-between mb-2">

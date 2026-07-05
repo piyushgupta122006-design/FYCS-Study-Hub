@@ -23,6 +23,7 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const Navbar = lazy(() => import('./components/Navbar'));
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
+const TodayVisitorsPage = lazy(() => import('./pages/TodayVisitorsPage'));
 
 // Shared shimmer primitive
 const Sk = ({ className, style }) => (
@@ -469,6 +470,7 @@ function App() {
             <Route path="/library" element={<Library />} />
             <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
             <Route path="/admin-upload" element={<ProtectedRoute requiredRole="admin"><AdminUpload /></ProtectedRoute>} />
+            <Route path="/admin/analytics/visitors" element={<ProtectedRoute requiredRole="admin"><TodayVisitorsPage /></ProtectedRoute>} />
             <Route path="/admin/:activeTab" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
             <Route path="/admin" element={<Navigate to="/admin/analytics" replace />} />
             <Route path="/profile" element={<Profile />} />

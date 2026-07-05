@@ -11,14 +11,12 @@ import AdminMaterials from "../components/admin/AdminMaterials";
 import AdminUsers from "../components/admin/AdminUsers";
 import AdminSettings from "../components/admin/AdminSettings";
 import AdminReports from "../components/admin/AdminReports";
-import AdminVisitors from "../components/admin/AdminVisitors";
 import CustomSelect from "../components/admin/CustomSelect";
 import { doc, updateDoc, deleteDoc, writeBatch, collection, getDocs, query, orderBy, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
 const tabs = [
   { id: "analytics", label: "Analytics", icon: <BarChart2 size={16} /> },
-  { id: "visitors", label: "Visitors", icon: <Users size={16} /> },
   { id: "subjects", label: "Subjects", icon: <Book size={16} /> },
   { id: "materials", label: "Materials", icon: <FileText size={16} /> },
   { id: "reports", label: "Reports", icon: <Flag size={16} /> },
@@ -97,7 +95,6 @@ export default function Admin() {
   
   // Analytics & Notifications States
   const [todayVisitors, setTodayVisitors] = useState(0);
-  const [visitorDetails, setVisitorDetails] = useState([]); // 👈 Naya state
   const [notificationEmail, setNotificationEmail] = useState("");
   const [notificationTitle, setNotificationTitle] = useState("");
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -259,12 +256,9 @@ export default function Admin() {
     const statRef = doc(db, 'analytics', today);
     const unsubscribe = onSnapshot(statRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        setTodayVisitors(data.visitors || 0);
-        setVisitorDetails(data.visitorDetails || []); // 👈 Array fetch karein
+        setTodayVisitors(docSnap.data().visitors || 0);
       } else {
         setTodayVisitors(0);
-        setVisitorDetails([]);
       }
     });
     return () => unsubscribe();
@@ -1158,15 +1152,8 @@ export default function Admin() {
             <AdminAnalytics
               safeStats={safeStats}
               todayVisitors={todayVisitors}
-              visitorDetails={visitorDetails} // 👈 Naya prop pass karein
               uniqueUsers={uniqueUsers}
               formatNumber={formatNumber}
-            />
-          )}
-
-          {activeTab === "visitors" && (
-            <AdminVisitors
-              visitorDetails={visitorDetails}
             />
           )}
 

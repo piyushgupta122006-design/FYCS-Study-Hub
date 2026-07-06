@@ -211,10 +211,15 @@ export default function AdminUpload() {
       return;
     }
 
-    // Safety check: Ensure Google Picker is fully loaded
-    if (!window.google || !window.google.picker) {
-      toast.error("Google Drive interface is still loading. Please try again in a few seconds.");
-      console.log('Google Picker not ready yet:', { google: !!window.google, picker: !!window.google?.picker });
+    // Safety check: Ensure Google Picker and Accounts/OAuth2 are fully loaded (not supported in native WebViews)
+    if (!window.google?.accounts?.oauth2 || !window.google?.picker) {
+      toast.error("Google Drive Picker is not supported inside the mobile app. Please copy-paste the link directly.");
+      console.log('Google Picker or GSI not ready/supported:', { 
+        google: !!window.google, 
+        accounts: !!window.google?.accounts, 
+        oauth2: !!window.google?.accounts?.oauth2, 
+        picker: !!window.google?.picker 
+      });
       return;
     }
 

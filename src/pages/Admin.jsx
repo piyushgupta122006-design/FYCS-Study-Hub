@@ -1087,8 +1087,9 @@ export default function Admin() {
       return;
     }
 
-    if (!window.google || !window.google.picker) {
-      toast.error("Google Drive interface is still loading. Please try again in a few seconds.");
+    // Safety check: Ensure Google Picker and Accounts/OAuth2 are fully loaded (not supported in native WebViews)
+    if (!window.google?.accounts?.oauth2 || !window.google?.picker) {
+      toast.error("Google Drive Picker is not supported inside the mobile app. Please copy-paste the link directly.");
       return;
     }
 

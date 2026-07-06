@@ -1075,17 +1075,60 @@ export const AppProvider = ({ children }) => {
 };
 
 function ShareIntentListener() {
-  const { handleSharedFile } = useApp();
+  const { handleSharedFile, authLoading, user } = useApp();
+  const [pendingShare, setPendingShare] = useState(null);
 
+  // 1. Listen for hot share intents (when app is already open)
   useEffect(() => {
     const handleIntent = (event) => {
       const { uri, type } = event.detail;
-      handleSharedFile(uri, type);
+      setPendingShare({ uri, type });
     };
 
     window.addEventListener('appSendIntent', handleIntent);
     return () => window.removeEventListener('appSendIntent', handleIntent);
-  }, [handleSharedFile]);
+  }, []);
+
+  // 2. Check for cold-start share intent via Javascript Interface
+  useEffect(() => {
+    const checkColdStartIntent = () => {
+      if (window.AndroidShareHandler) {
+        try {
+          const pending = window.AndroidShareHandler.getPendingShare();
+          if (pending) {
+            const parts = pending.split('|');
+            if (parts.length === 2) {
+              setPendingShare({ uri: parts[0], type: parts[1] });
+            }
+          }
+        } catch (e) {
+          console.error("Error reading pending share from AndroidShareHandler", e);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkColdStartIntent();
+
+    // Check again after a short delay to ensure Android bridge is fully registered
+    const timer = setTimeout(checkColdStartIntent, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 3. Process the pending share when auth state is resolved and user is logged in
+  useEffect(() => {
+    if (!authLoading && pendingShare) {
+      if (user) {
+        const { uri, type } = pendingShare;
+        setPendingShare(null); // Clear it first to prevent double triggers
+        handleSharedFile(uri, type);
+      } else {
+        // Not logged in: Clear pending share and show toast
+        setPendingShare(null);
+        toast.error("Please login to upload shared materials");
+      }
+    }
+  }, [authLoading, user, pendingShare, handleSharedFile]);
 
   return null;
 }

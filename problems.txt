@@ -1,0 +1,41 @@
+========================================================================
+                      FYCS STUDY HUB - BUG TRACKING REPORT
+========================================================================
+
+Here is the documentation of the major issues encountered and resolved in the FYCS Study Hub project (including both web and Android app wrappers).
+
+------------------------------------------------------------------------
+Issue 1: Mobile Share-to-App Redirection (Cold Start vs. Hot Start)
+------------------------------------------------------------------------
+- Problem Definition: 
+  * Hot Start (App already running in background): Sharing a document from mobile file explorer to the app worked fine, transferring the user to the Upload page.
+  * Cold Start (App completely closed/killed): Sharing a document from file explorer launched the app but left it on the main Home page instead of navigating to the Upload page.
+- Technical Cause:
+  When the app is cold-started, the Android OS creates MainActivity and immediately dispatches the Custom JavaScript event ('appSendIntent') via WebView.evaluateJavascript. However, the React web app has not finished mounting yet, meaning the JavaScript event listener doesn't exist, and the event is lost forever.
+- Resolution:
+  1. Built a custom native Capacitor plugin class called "ShareReceiverPlugin" and registered it in MainActivity.java.
+  2. The native Android code now stores the shared URI & mimeType in native memory.
+  3. On startup, the React app's ShareIntentListener queries this Capacitor plugin asynchronously.
+  4. The plugin returns the stored details and clears them so it is not processed twice. This guarantees the share data is never lost, regardless of cold start loading speeds.
+
+------------------------------------------------------------------------
+Issue 2: Google Drive Picker Crash inside App (OAuth2 Undefined)
+------------------------------------------------------------------------
+- Problem Definition:
+  Clicking the Google Drive button inside the mobile app threw a TypeError crash: "Cannot read properties of undefined (reading 'oauth2')".
+- Technical Cause:
+  Google Identity Services (GSI) script fails to initialize or blocks loading inside native WebViews (due to Capacitor's local origin: https://localhost) for OAuth security reasons. This left window.google.accounts.oauth2 undefined, causing the app to crash.
+- Resolution:
+  Added comprehensive check-safeguards to both AdminUpload.jsx and Admin.jsx. If window.google.accounts.oauth2 is undefined, it prevents the crash and shows a user-friendly Toast: "Google Drive Picker is not supported inside the mobile app. Please copy-paste the link directly."
+
+------------------------------------------------------------------------
+Issue 3: Flash of Login Page on Slow Networks (Login Session Delay)
+------------------------------------------------------------------------
+- Problem Definition:
+  On slow networks, users who were already logged in would temporarily see the Login page for 1-2 seconds, which then disappeared, redirecting them back to the Home page.
+- Technical Cause:
+  Upon startup, Firebase Auth checks the IndexedDB persistence layer asynchronously. In mobile WebViews under slow network conditions, it temporarily emits a 'null' (logged out) auth state before resolving the actual persistent user session. The app reacted to this null state by hiding the loading skeleton and flashing the Login screen.
+- Resolution:
+  Modified AppContext.jsx to use "await auth.authStateReady()" inside the auth initialization cycle. This forces Firebase to fully resolve the local IndexedDB state before the app fires the listener, ensuring logged-in users never see the login screen on cold start.
+
+========================================================================

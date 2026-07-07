@@ -203,8 +203,11 @@ export const AppProvider = ({ children }) => {
     const initAuth = async () => {
       try {
         await authReady;
+        if (auth && typeof auth.authStateReady === "function") {
+          await auth.authStateReady();
+        }
       } catch (err) {
-        console.error("Auth persistence setup failed:", err);
+        console.error("Auth persistence / state ready setup failed:", err);
       }
       
       if (!isMounted) return;

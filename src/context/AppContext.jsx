@@ -398,14 +398,13 @@ export const AppProvider = ({ children }) => {
          error?.code === "auth/cancelled-popup-request") &&
         elapsed > REALISTIC_INTERACTION_MS;
 
-      if (looksLikeDisguisedStorageBlock) {
-        console.warn(
-          `Popup closed after ${elapsed}ms with code ${error.code} — ` +
-          `this looks like a third-party storage block (Safari ITP / Brave / ` +
-          `Chrome 3rd-party cookies off) disguised as a manual close. ` +
-          `Falling back to signInWithRedirect.`
-        );
-        toast("Your browser's privacy settings are blocking popup sign-in. Redirecting you to Google instead...", {
+      if (looksLikeDisguisedStorageBlock || error?.code === "auth/popup-blocked") {
+        const reason = error?.code === "auth/popup-blocked" 
+          ? "Popup was blocked by the browser" 
+          : `Popup closed/cancelled after ${elapsed}ms (${error?.code})`;
+          
+        console.warn(`${reason}. Falling back to signInWithRedirect.`);
+        toast("Your browser's settings are blocking the popup. Redirecting you to Google instead...", {
           icon: "🔄",
           duration: 4000
         });

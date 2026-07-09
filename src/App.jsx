@@ -686,7 +686,7 @@ function FloatingAIButton() {
       </style>
 
       {/* ✨ NAYA SHINY CURVY BUTTON (Desktop par Pill-shape, Mobile par Circular) */}
-      <div className="fixed bottom-24 right-6 z-50 group mobile-float-btn">
+      <div className="fixed bottom-24 right-6 z-50 group mobile-float-btn rounded-full">
         {/* Glow Layer */}
         <div
           className="absolute inset-0 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 group-hover:blur-[15px] active:blur-[5px] transition-all duration-300"
@@ -697,9 +697,7 @@ function FloatingAIButton() {
 
         <button
           onClick={() => setIsOpen(!isOpen)}
-          // 🌟 'rounded-full' isko curvy banata hai. 
-          // 🌟 'p-4 sm:px-5 sm:py-3' padding se mobile par circle aur PC par lamba rakhega.
-          className="relative flex items-center justify-center gap-2 p-4 sm:px-5 sm:py-3 text-white rounded-full border-none cursor-pointer transition-all duration-300 active:translate-y-[3px]"
+          className="relative flex items-center justify-center gap-2 w-14 h-14 sm:w-auto sm:h-auto sm:px-5 sm:py-3 text-white rounded-full border-none cursor-pointer transition-all duration-300 active:translate-y-[3px] overflow-hidden"
           style={{
             background: 'linear-gradient(90deg, #5bfcc4, #f593e4, #71a4f0)',
             boxShadow: 'inset 0px 0px 5px rgba(255,255,255,0.66), inset 0px 35px 30px #000, 0px 5px 10px rgba(0,0,0,0.8)',
@@ -712,7 +710,6 @@ function FloatingAIButton() {
               <path d="M9.107 5.448c.598-1.75 3.016-1.803 3.725-.159l.06.16l.807 2.36a4 4 0 0 0 2.276 2.411l.217.081l2.36.806c1.75.598 1.803 3.016.16 3.725l-.16.06l-2.36.807a4 4 0 0 0-2.412 2.276l-.081.216l-.806 2.361c-.598 1.75-3.016 1.803-3.724.16l-.062-.16l-.806-2.36a4 4 0 0 0-2.276-2.412l-.216-.081l-2.36-.806c-1.751-.598-1.804-3.016-.16-3.724l.16-.062l2.36-.806A4 4 0 0 0 8.22 8.025l.081-.216zM11 6.094l-.806 2.36a6 6 0 0 1-3.49 3.649l-.25.091l-2.36.806l2.36.806a6 6 0 0 1 3.649 3.49l.091.25l.806 2.36l.806-2.36a6 6 0 0 1 3.49-3.649l.25-.09l2.36-.807l-2.36-.806a6 6 0 0 1-3.649-3.49l-.09-.25zM19 2a1 1 0 0 1 .898.56l.048.117l.35 1.026l1.027.35a1 1 0 0 1 .118 1.845l-.118.048l-1.026.35l-.35 1.027a1 1 0 0 1-1.845.117l-.048-.117l-.35-1.026l-1.027-.35a1 1 0 0 1-.118-1.845l.118-.048l1.026-.35l.35-1.027A1 1 0 0 1 19 2" fill="currentColor" />
             </g>
           </svg>
-          {/* 🌟 'hidden sm:inline' - Mobile par text gayab, sirf gol icon bachega */}
           <span className="hidden sm:inline font-bold text-sm tracking-wide text-white">Assignment AI</span>
         </button>
       </div>

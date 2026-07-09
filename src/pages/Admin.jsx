@@ -1052,15 +1052,56 @@ export default function Admin() {
     }
     setIsSending(true);
     try {
+      const targetEmailVal = notificationEmail.trim() || 'ALL';
       const notificationData = {
-        targetEmail: notificationEmail.trim() || 'ALL',
+        targetEmail: targetEmailVal,
         title: notificationTitle.trim(),
         message: notificationMessage.trim(),
         createdAt: serverTimestamp(),
         readBy: []
       };
       await addDoc(collection(db, "notifications"), notificationData);
-      toast.success("Notification sent successfully!");
+
+      const mailScriptUrl = import.meta.env.VITE_MAIL_SCRIPT_URL;
+      if (mailScriptUrl && mailScriptUrl !== "YOUR_NEWLY_DEPLOYED_APPS_SCRIPT_URL") {
+        const sendEmail = async (toEmail) => {
+          const globalNoticeTemplate = `
+            <div style="background-color:#0a0a0a; color:#ffffff; padding:20px; font-family:sans-serif; border-radius:12px; border:1px solid #FFD700;">
+              <h2 style="color:#FFD700; margin-bottom:10px;">📢 New Announcement: ${notificationTitle.trim()}</h2>
+              <p>${notificationMessage.trim()}</p>
+              <hr style="border-color:rgba(255,255,255,0.1); margin:20px 0;"/>
+              <p style="font-size:11px; color:rgba(255,255,255,0.4);">Check the live updates feed directly on the BNN CS Study Hub app/website.</p>
+            </div>
+          `;
+          try {
+            await fetch(mailScriptUrl, {
+              method: "POST",
+              mode: "no-cors",
+              body: JSON.stringify({
+                email: toEmail,
+                subject: `BNN CS Hub Update: ${notificationTitle.trim()}`,
+                messageHtml: globalNoticeTemplate
+              })
+            });
+          } catch (e) {
+            console.error("Bulk node trigger failed for", toEmail, e);
+          }
+        };
+
+        if (targetEmailVal === 'ALL') {
+          users.forEach((u) => {
+            if (u.email) {
+              sendEmail(u.email);
+            }
+          });
+        } else {
+          sendEmail(targetEmailVal);
+        }
+        toast.success("Notification published & Emails sent for Free!");
+      } else {
+        toast.success("Notification sent successfully (Mailing script url not configured).");
+      }
+
       setNotificationEmail("");
       setNotificationTitle("");
       setNotificationMessage("");

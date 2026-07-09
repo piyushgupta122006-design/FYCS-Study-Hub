@@ -188,6 +188,39 @@ export const AppProvider = ({ children }) => {
     
     return () => unsubscribeUsers();
   }, [isAdmin]);
+
+  const sendWelcomeEmail = async (userEmail, userName) => {
+    const mailScriptUrl = import.meta.env.VITE_MAIL_SCRIPT_URL;
+    if (!mailScriptUrl || mailScriptUrl === "YOUR_NEWLY_DEPLOYED_APPS_SCRIPT_URL") {
+      console.warn("Mail script URL is not configured. Skipping welcome email.");
+      return;
+    }
+    
+    const welcomeTemplate = `
+      <div style="background-color:#0a0a0a; color:#ffffff; padding:20px; font-family:sans-serif; border-radius:12px; border:1px solid #FFD700; max-w:400px; margin:auto;">
+        <h1 style="color:#FFD700; margin-bottom:10px; font-size:20px;">Welcome to BNN CS Study Hub! 🚀</h1>
+        <p style="font-size:14px; line-height:1.5;">Hey <b>${userName}</b>,</p>
+        <p style="font-size:14px; line-height:1.5; color:#e4e4e7;">We are absolutely thrilled to have you here. Your journey to cracking computer science references, notes, and assignments smoothly starts right now!</p>
+        <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:20px 0;"/>
+        <p style="font-size:11px; color:#a1a1aa; text-align:center;">This is a system generated free notification from BNN CS Study Hub Team.</p>
+      </div>
+    `;
+
+    try {
+      await fetch(mailScriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          email: userEmail,
+          subject: "Welcome to BNN CS Study Hub! 🎉",
+          messageHtml: welcomeTemplate
+        })
+      });
+      console.log("Welcome email triggered successfully");
+    } catch (err) {
+      console.error("Welcome email failed silently", err);
+    }
+  };
   
   // Authentication listener with user sync and ban flag
   useEffect(() => {
@@ -268,6 +301,9 @@ export const AppProvider = ({ children }) => {
                   id: firebaseUser.uid
                 });
                 setUserRole("student");
+                
+                // Trigger welcome email silently in the background
+                sendWelcomeEmail(firebaseUser.email, firebaseUser.displayName || "Student");
               } catch (err) {
                 console.error("Error creating user doc:", err);
                 

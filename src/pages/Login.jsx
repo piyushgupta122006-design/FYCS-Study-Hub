@@ -8,13 +8,47 @@ export default function Login() {
   const { login, user } = useApp();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  
+
   useEffect(() => {
     if (user) {
       navigate('/');
     }
   }, [user, navigate]);
-  
+
+  const sendWelcomeEmail = async (userEmail, userName) => {
+    const mailScriptUrl = import.meta.env.VITE_MAIL_SCRIPT_URL;
+    if (!mailScriptUrl || mailScriptUrl === "YOUR_NEWLY_DEPLOYED_APPS_SCRIPT_URL") {
+      console.warn("Mail script URL is not configured. Skipping welcome email.");
+      return;
+    }
+
+    const welcomeTemplate = `
+      <div style="background-color:#0a0a0a; color:#ffffff; padding:20px; font-family:sans-serif; border-radius:12px; border:1px solid #FFD700; max-w:400px; margin:auto;">
+        <h1 style="color:#FFD700; margin-bottom:10px; font-size:20px;">Welcome to BNN CS Study Hub! 🚀</h1>
+        <p style="font-size:14px; line-height:1.5;">Hey <b>${userName}</b>,</p>
+        <p style="font-size:14px; line-height:1.5; color:#e4e4e7;">We are absolutely thrilled to have you here. Your journey to cracking computer science references, notes, and assignments smoothly starts right now!</p>
+        <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:20px 0;"/>
+        <p style="font-size:11px; color:#a1a1aa; text-align:center;">This is a system generated free notification from BNN CS Study Hub Team.</p>
+      </div>
+    `;
+
+    try {
+      await fetch(mailScriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          subject: "Welcome to BNN CS Study Hub! 🎉",
+          messageHtml: welcomeTemplate
+        })
+      });
+      console.log("Welcome trigger sent successfully!");
+    } catch (err) {
+      console.error("Welcome email failed silently", err);
+    }
+  };
+
   const handleLogin = async () => {
     try {
       setIsLoading(true);
@@ -23,6 +57,11 @@ export default function Login() {
       // navigate away to Google — don't call navigate('/') here, it'll
       // just be discarded. The redirect result is handled on the next load.
       if (result?.redirecting) return;
+
+      if (result?.user?.email) {
+        await sendWelcomeEmail(result.user.email, result.user.displayName || "Student");
+      }
+
       navigate('/');
     } catch (error) {
       // Always reset spinner — no matter what went wrong
@@ -62,17 +101,17 @@ export default function Login() {
       toast.error("Sign in failed. Please try again.");
     }
   };
-  
+
   return (
     // Root container wahi hai jo aapne bheja tha (Scrolling 100% kaam karegi)
     <div className="bg-[#0a0a0a] min-h-screen text-white overflow-y-auto font-sans relative">
-      
+
       {/* 1. MAIN LOGIN SECTION */}
       {/* 🚨 FIX: flex-col aur justify-between lagaya hai, aur 100svh use kiya hai */}
       <div className="min-h-[100svh] w-full flex flex-col items-center justify-between p-4 relative overflow-hidden">
-        
+
         {/* Animated Background Blobs */}
-        <div 
+        <div
           className="absolute inset-0 opacity-20"
           style={{
             backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
@@ -81,7 +120,7 @@ export default function Login() {
         />
         <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/30 rounded-full blur-3xl animate-pulse" />
-        
+
         {/* 🚨 FIX: Upar ek khali jagah (spacer) di hai taaki card exactly center me rahe */}
         <div className="w-full h-8 md:h-12 relative z-10"></div>
 
@@ -92,26 +131,26 @@ export default function Login() {
               {/* Logo */}
               <div className="flex justify-center mb-8">
                 <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-600/30 to-blue-500/30 border border-white/20 flex items-center justify-center shadow-lg shadow-purple-500/20 backdrop-blur-sm">
-                  <img 
-                    src="/logo.png" 
+                  <img
+                    src="/logo.png"
                     alt="BNN CS Study Hub Logo"
                     width="64"
                     height="64"
-                    className="w-16 h-16 object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" 
+                    className="w-16 h-16 object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                   />
                 </div>
               </div>
-              
+
               {/* Heading */}
               <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                 BNN CS Study Hub
               </h1>
-              
+
               {/* Subtext */}
               <p className="text-zinc-400 text-sm mb-10">
                 Your central hub for BNN computer science students.
               </p>
-              
+
               {/* Login Button */}
               <button
                 type="button"
@@ -127,7 +166,7 @@ export default function Login() {
                 ) : (
                   <>
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.76-1.77 3.12-3.77 3.12-2.29 0-4.14-1.86-4.14-4.15s1.85-4.15 4.14-4.15c1.11 0 2.08.41 2.81 1.19l2.06-2.06c-1.27-1.19-2.88-1.92-4.87-1.92-4.02 0-7.29 3.27-7.29 7.29s3.27 7.29 7.29 7.29c3.68 0 6.74-2.69 6.74-7.29 0-.58-.1-1.14-.2-1.67z"/>
+                      <path d="M21.35 11.1h-9.17v2.73h6.51c-.33 1.76-1.77 3.12-3.77 3.12-2.29 0-4.14-1.86-4.14-4.15s1.85-4.15 4.14-4.15c1.11 0 2.08.41 2.81 1.19l2.06-2.06c-1.27-1.19-2.88-1.92-4.87-1.92-4.02 0-7.29 3.27-7.29 7.29s3.27 7.29 7.29 7.29c3.68 0 6.74-2.69 6.74-7.29 0-.58-.1-1.14-.2-1.67z" />
                     </svg>
                     Sign in with Google
                   </>
@@ -146,7 +185,7 @@ export default function Login() {
             </div>
           </div>
         </div>
-        
+
         {/* 🚨 FIX: Absolute hata diya hai. Ab ye natural flow mein hamesha bottom par rahega */}
         {/* Scroll Indicator */}
         <div className="flex flex-col items-center animate-bounce text-zinc-500 z-10 mb-2 md:mb-6 mt-4">
@@ -159,7 +198,7 @@ export default function Login() {
       {/* THE MAGIC FIX: pt-16 mt-12 md:mt-0 */}
       <div className="max-w-4xl mx-auto px-6 py-24 text-zinc-400 border-t border-white/5 relative z-20 bg-[#0a0a0a] mt-24 md:mt-0">
         <h2 className="text-2xl font-bold text-white mb-6">Welcome to BNN CS Study Hub</h2>
-        
+
         <div className="grid md:grid-cols-2 gap-8 text-sm leading-relaxed">
           <div>
             <p className="mb-4">

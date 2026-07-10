@@ -12,7 +12,7 @@ import AdminUsers from "../components/admin/AdminUsers";
 import AdminSettings from "../components/admin/AdminSettings";
 import AdminReports from "../components/admin/AdminReports";
 import CustomSelect from "../components/admin/CustomSelect";
-import { doc, updateDoc, deleteDoc, writeBatch, collection, getDocs, query, orderBy, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, writeBatch, collection, getDocs, query, orderBy, onSnapshot, addDoc, serverTimestamp, getCountFromServer } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
 const tabs = [
@@ -33,7 +33,7 @@ export default function Admin() {
   const activeTab = tabParam || "analytics";
 
   const { 
-    semesters, subjects, materials, users, stats, user, loading,
+    semesters, subjects, materials, stats, user, loading,
     approveMaterial, rejectMaterial, deleteMaterial,
     addSubject, getSemesterById, getSubjectById,
     getPendingMaterials, getApprovedMaterials, getSubjectsBySemester
@@ -103,6 +103,8 @@ export default function Admin() {
   const [isSending, setIsSending] = useState(false);
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
 
   // 🌟 BULK ACTIONS LOGIC 🌟
   const togglePendingSelection = (id) => {
@@ -279,6 +281,51 @@ export default function Admin() {
     return () => unsubscribe();
   }, []);
 
+  // Fetch total registered users count using getCountFromServer (Only 1 read operation)
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      try {
+        const coll = collection(db, "users");
+        const snapshot = await getCountFromServer(coll);
+        setRegisteredUsersCount(snapshot.data().count);
+      } catch (err) {
+        console.error("Error fetching registered users count:", err);
+      }
+    };
+    fetchUserCount();
+  }, []);
+
+  // Listen to users collection in real-time ONLY when on users/settings tabs
+  useEffect(() => {
+    const userRole = user?.role || "student";
+    const isAdmin = CREATOR_EMAILS.includes(user?.email) || userRole === "admin";
+    if (!isAdmin || (activeTab !== "users" && activeTab !== "settings")) {
+      setUsers([]);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      collection(db, "users"),
+      (snapshot) => {
+        const usersList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        // Sort: Newest timestamp (b) - Oldest timestamp (a)
+        const sortedUsers = usersList.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || 0;
+          const timeB = b.createdAt?.seconds || 0;
+          return timeB - timeA;
+        });
+        setUsers(sortedUsers);
+      },
+      (error) => {
+        console.error("Error listening to users in Admin:", error);
+      }
+    );
+    return () => unsubscribe();
+  }, [user, activeTab]);
+
   // Dynamically load Google scripts on mount
   useEffect(() => {
     const loadGapi = () => new Promise(res => {
@@ -407,9 +454,7 @@ export default function Admin() {
 
   // 7. Event Handlers
   const handleDeleteGlobal = async (id) => {
-    if(window.confirm("Delete this notification for everyone?")) {
-      await deleteDoc(doc(db, 'notifications', id));
-    }
+    await deleteDoc(doc(db, 'notifications', id));
   };
 
   const handleAddSubject = async (e) => {
@@ -1222,7 +1267,7 @@ export default function Admin() {
             <AdminAnalytics
               safeStats={safeStats}
               todayVisitors={todayVisitors}
-              uniqueUsers={uniqueUsers}
+              uniqueUsersCount={registeredUsersCount}
               formatNumber={formatNumber}
             />
           )}

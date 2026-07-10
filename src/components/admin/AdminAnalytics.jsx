@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { FileText, Eye, Users, Clock } from "lucide-react";
 
-export default function AdminAnalytics({ safeStats, todayVisitors, uniqueUsers, formatNumber }) {
+export default function AdminAnalytics({ safeStats, todayVisitors, uniqueUsersCount, formatNumber }) {
   const navigate = useNavigate();
 
   return (
@@ -58,7 +58,7 @@ export default function AdminAnalytics({ safeStats, todayVisitors, uniqueUsers, 
           </div>
           <div>
             <div className="text-white/50 mb-1">Registered Users</div>
-            <div className="font-bold">{uniqueUsers.length}</div>
+            <div className="font-bold">{uniqueUsersCount}</div>
           </div>
         </div>
       </div>

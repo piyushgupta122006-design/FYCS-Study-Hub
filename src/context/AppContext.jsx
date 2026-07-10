@@ -157,37 +157,6 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
   
-  // Real-time listener for users (ONLY FOR ADMIN)
-  useEffect(() => {
-    if (!isAdmin) {
-      setUsers([]);
-      return;
-    }
-    
-    const unsubscribeUsers = onSnapshot(
-      collection(db, "users"),
-      (snapshot) => {
-        const usersList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        // Sort: Newest timestamp (b) - Oldest timestamp (a)
-        const sortedUsers = usersList.sort((a, b) => {
-          const timeA = a.createdAt?.seconds || 0;
-          const timeB = b.createdAt?.seconds || 0;
-          return timeB - timeA;
-        });
-
-        setUsers(sortedUsers);
-      },
-      (error) => {
-        console.error("Error listening to users: ", error);
-      }
-    );
-    
-    return () => unsubscribeUsers();
-  }, [isAdmin]);
 
   const sendWelcomeEmail = async (userEmail, userName) => {
     const mailScriptUrl = import.meta.env.VITE_MAIL_SCRIPT_URL;

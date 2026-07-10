@@ -1,12 +1,14 @@
 import { User, LogOut, ExternalLink, Clock, Trash2, Settings, X, Sparkles, Bell, Bookmark, FileText, Upload, Monitor, ChevronRight, Minus, Plus, Check } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useState, useEffect, useRef } from "react";
-import { collection, addDoc, getDocs, query, where, serverTimestamp, updateDoc, doc, arrayUnion, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, serverTimestamp, updateDoc, doc, arrayUnion, deleteDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db } from "../firebase";
 import { toast } from "react-hot-toast";
 import Swal from "sweetalert2";
 import { BiMessageDetail } from 'react-icons/bi';
 
+// SECURE NOTE: Client-side keys are bundled in the frontend and visible in the browser.
+// Ensure this key is strictly restricted using domain restrictions in the ImgBB dashboard settings.
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_KEY;
 
 const SUBJECT_SHORT_NAMES = {
@@ -169,18 +171,23 @@ export default function Profile() {
     const activeNotifs = notifications.filter(n => !(n.deletedBy?.includes(user.email)));
     const unreadNotifs = activeNotifs.filter(n => !(n.readBy?.includes(user.uid)));
     
+    if (unreadNotifs.length === 0) return;
+
     setNotifications(prev => 
       prev.map(n => unreadNotifs.some(unread => unread.id === n.id) 
         ? { ...n, readBy: [...(n.readBy || []), user.uid] } : n)
     );
     setUnreadCount(0);
     
-    for (const notif of unreadNotifs) {
-      try {
-        await updateDoc(doc(db, 'notifications', notif.id), { readBy: arrayUnion(user.uid) });
-      } catch (error) {
-        console.error('Error marking notification as read:', error);
+    try {
+      const batch = writeBatch(db);
+      for (const notif of unreadNotifs) {
+        batch.update(doc(db, 'notifications', notif.id), { readBy: arrayUnion(user.uid) });
       }
+      await batch.commit();
+    } catch (error) {
+      console.error('Error marking notifications as read in batch:', error);
+      toast.error('Failed to mark all notifications as read.');
     }
   };
   
@@ -311,6 +318,14 @@ export default function Profile() {
   const handleFeedbackImageUpload = async (e) => {
     const files = Array.from(e.target.files).slice(0, 3);
     if (files.length === 0) return;
+
+    for (const file of files) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(`"${file.name}" must be under 2MB.`);
+        e.target.value = '';
+        return;
+      }
+    }
 
     const loadingToast = toast.loading(`Uploading ${files.length} screenshot(s)...`);
     const newUrls = [];

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Trash2, Loader2, Send, Eye, Sparkles } from "lucide-react";
 import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
 
 // 🌟 STAR GENERATOR CONSTANTS (AdminSettings function ke bahar)
 const STATIC_STARS = Array.from({ length: 4 }).map(() => ({
@@ -56,6 +57,8 @@ export default function AdminSettings({
       toast.error("Please type your detailed draft in the 'Professional Email Message (Long)' box first!");
       return;
     }
+    // SECURE NOTE: Client-side keys are bundled in the frontend and visible in the browser.
+    // Ensure this key is strictly restricted using HTTP referrer restrictions (Domain Restriction) in the Google Cloud Console.
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
       toast.error("Gemini API key is not configured.");
@@ -397,8 +400,56 @@ export default function AdminSettings({
         </div>
       </div>
 
+      {/* 🌟 UPDATED SENT NOTIFICATIONS CARD WITH DYNAMIC DELETE ALL ICON */}
       <div className="glass-card p-4 md:p-6">
-        <h3 className="font-bold text-base md:text-lg mb-4 text-white/90">📋 Sent Notifications</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-base md:text-lg text-white/90">📋 Sent Notifications</h3>
+          
+          {/* 🚨 TEMPORARY / PERMANENT BULK DELETE ACTION FOR CREATOR/ADMIN POOL */}
+          {sentNotifications.length > 0 && CREATOR_EMAILS.includes(user?.email) && (
+            <button
+              type="button"
+              onClick={async () => {
+                const result = await Swal.fire({
+                  title: "Delete All Notifications?",
+                  text: "This will permanently delete all sent notifications from the database! This action cannot be undone.",
+                  icon: "warning",
+                  showCancelButton: true,
+                  confirmButtonText: "Yes, Wipe Out",
+                  cancelButtonText: "Cancel",
+                  buttonsStyling: false,
+                  background: "#0c0c0e",
+                  color: "#ffffff",
+                  customClass: {
+                    popup: "border border-zinc-800 rounded-3xl p-5 shadow-2xl",
+                    confirmButton: "bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-bold text-white mr-3 cursor-pointer",
+                    cancelButton: "bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer"
+                  }
+                });
+
+                if (result.isConfirmed) {
+                  const loadingToast = toast.loading("Clearing notification broadcast streams...");
+                  try {
+                    // Loop over each active record sequentially to execute delete flows
+                    for (const notif of sentNotifications) {
+                      await handleDeleteGlobal(notif.id);
+                    }
+                    toast.success("All notifications deleted successfully! 🧹", { id: loadingToast });
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Bulk deletion failed on database synchronization node.", { id: loadingToast });
+                  }
+                }
+              }}
+              className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs font-bold border border-rose-500/20 active:scale-95 transition-all cursor-pointer shadow-sm"
+              title="Delete All Notifications"
+            >
+              <Trash2 size={14} className="shrink-0" />
+              <span className="hidden sm:inline">Delete All</span>
+            </button>
+          )}
+        </div>
+
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {sentNotifications.length > 0 ? (
             sentNotifications.map((notif) => (
@@ -409,8 +460,9 @@ export default function AdminSettings({
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
+                  {/* Eye icon/read counts hidden on mobile, only delete button shown */}
                   <div
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium border border-blue-500/20"
+                    className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium border border-blue-500/20"
                     title={`${notif.readBy?.length || 0} users have read this`}
                   >
                     <Eye size={14} />
@@ -419,7 +471,34 @@ export default function AdminSettings({
 
                   {CREATOR_EMAILS.includes(user.email) && (
                     <button
-                      onClick={() => handleDeleteGlobal(notif.id)}
+                      onClick={async () => {
+                        const result = await Swal.fire({
+                          title: "Delete Notification?",
+                          text: `Are you sure you want to delete "${notif.title}"?`,
+                          icon: "warning",
+                          showCancelButton: true,
+                          confirmButtonText: "Yes, Delete",
+                          cancelButtonText: "Cancel",
+                          buttonsStyling: false,
+                          background: "#0c0c0e",
+                          color: "#ffffff",
+                          customClass: {
+                            popup: "border border-zinc-800 rounded-3xl p-5 shadow-2xl",
+                            confirmButton: "bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-bold text-white mr-3 cursor-pointer",
+                            cancelButton: "bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer"
+                          }
+                        });
+
+                        if (result.isConfirmed) {
+                          try {
+                            await handleDeleteGlobal(notif.id);
+                            toast.success("Notification deleted successfully! 🧹");
+                          } catch (err) {
+                            console.error(err);
+                            toast.error("Deletion failed on database synchronization node.");
+                          }
+                        }
+                      }}
                       className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                       title="Delete Notification"
                     >

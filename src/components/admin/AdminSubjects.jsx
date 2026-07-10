@@ -32,18 +32,18 @@ export default function AdminSubjects({
 
         <div className="w-full h-px bg-white/5 my-4" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
           <button
             type="button"
             onClick={() => setShowAddSubjectForm(!showAddSubjectForm)}
-            className="glass-card border border-white/10 p-5 flex flex-col items-center justify-center gap-2 rounded-xl hover:bg-white/5 transition-all text-center"
+            className="glass-card border border-white/10 aspect-square p-3 sm:p-5 flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl hover:bg-white/5 transition-all text-center"
           >
             <Plus size={18} className="text-white/50" />
-            <span className="font-bold text-white/70 text-xs">Add Single Subject (Manual)</span>
-            <span className="text-[10px] text-white/40">Type manually for Semester {newSubject.semesterId}</span>
+            <span className="font-bold text-white/70 text-[10px] sm:text-xs leading-tight">Add Single Subject (Manual)</span>
+            <span className="text-[8px] sm:text-[10px] text-white/40 leading-tight">Type manually for Semester {newSubject.semesterId}</span>
           </button>
 
-          <label className={`glass-card border border-dashed p-5 flex flex-col items-center justify-center gap-2 rounded-xl transition-all text-center group ${
+          <label className={`glass-card border border-dashed aspect-square p-3 sm:p-5 flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl transition-all text-center group ${
             isAiProcessing
               ? 'border-zinc-700 bg-zinc-900/20 cursor-not-allowed opacity-50'
               : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 cursor-pointer'
@@ -60,8 +60,8 @@ export default function AdminSubjects({
             ) : (
               <Code size={18} className="text-purple-400 group-hover:scale-110 transition-transform" />
             )}
-            <span className="font-bold text-purple-300 text-xs">AI Syllabus Parser (PDF)</span>
-            <span className="text-[10px] text-purple-200/50">Auto-extract items for Semester {newSubject.semesterId}</span>
+            <span className="font-bold text-purple-300 text-[10px] sm:text-xs leading-tight">AI Syllabus Parser (PDF)</span>
+            <span className="text-[8px] sm:text-[10px] text-purple-200/50 leading-tight">Auto-extract items for Semester {newSubject.semesterId}</span>
           </label>
         </div>
       </div>

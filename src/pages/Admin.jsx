@@ -1120,42 +1120,113 @@ export default function Admin() {
           ? emailBodyText.trim()
           : notificationMessage.trim();
 
+        const urls = mailScriptUrl.split(",").map(u => u.trim()).filter(Boolean);
+        let currentScriptIndex = 0;
+
         const sendEmail = async (toEmail) => {
           const globalNoticeTemplate = `
-            <div style="background-color:#0a0a0a; color:#ffffff; padding:20px; font-family:sans-serif; border-radius:12px; border:1px solid #FFD700;">
-              <h2 style="color:#FFD700; margin-bottom:10px;">📢 New Announcement: ${notificationTitle.trim()}</h2>
-              <p>${emailContent}</p>
-              <hr style="border-color:rgba(255,255,255,0.1); margin:20px 0;"/>
-              <p style="font-size:11px; color:rgba(255,255,255,0.4);">Check the live updates feed directly on the BNN CS Study Hub app/website.</p>
+            <div style="background-color:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif; padding:32px 16px;">
+              <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width:600px; width:100%; margin:0 auto; background-color:#ffffff;">
+                <tbody>
+                  <tr>
+                    <td style="padding-bottom:48px;">
+                      <!-- Site Logo (Placeholder for your logo) -->
+                      <img src="https://fycs-study-hub.vercel.app/logo.png" width="32" height="32" alt="Study Hub" style="display:block;">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <h1 style="color:#171717; font-size:24px; font-weight:600; letter-spacing:-0.02em; margin:0 0 24px 0;">
+                        ${notificationTitle.trim()}
+                      </h1>
+                      <p style="color:#171717; font-size:16px; line-height:1.5; margin:0 0 16px 0;">
+                        ${emailContent}
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-top:44px; border-top:1px solid #e6e6e6;">
+                      <p style="color:#7d7d7d; font-size:14px; line-height:1.5; margin:0 0 8px 0;">
+                        Check the live updates feed directly on the BNN CS Study Hub app/website.
+                      </p>
+                      <p style="color:#7d7d7d; font-size:14px; margin:0 0 8px 0;">
+                        Copyright © 2026 BNN CS Study Hub. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           `;
-          try {
-            await fetch(mailScriptUrl, {
-              method: "POST",
-              mode: "no-cors",
-              body: JSON.stringify({
-                email: toEmail,
-                subject: `BNN CS Hub Update: ${notificationTitle.trim()}`,
-                messageHtml: globalNoticeTemplate
-              })
-            });
-          } catch (e) {
-            console.error("Bulk node trigger failed for", toEmail, e);
+
+          const payload = {
+            email: toEmail,
+            subject: `BNN CS Hub Update: ${notificationTitle.trim()}`,
+            messageHtml: globalNoticeTemplate
+          };
+
+          for (let i = currentScriptIndex; i < urls.length; i++) {
+            const url = urls[i];
+            try {
+              const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(payload)
+              });
+              const data = await response.json();
+              if (data && data.status === "error") {
+                console.warn(`Mail Script URL ${i + 1} returned quota error for ${toEmail}:`, data.message);
+                currentScriptIndex = i + 1; // Cache index increment to skip exhausted script
+                continue;
+              }
+              console.log(`Email successfully sent to ${toEmail} using script URL ${i + 1}`);
+              return true;
+            } catch (err) {
+              console.warn(`Mail Script URL ${i + 1} failed with CORS/network error, trying fallback no-cors mode...`);
+              try {
+                await fetch(url, {
+                  method: "POST",
+                  mode: "no-cors",
+                  body: JSON.stringify(payload)
+                });
+                console.log(`Email sent (no-cors mode fallback) to ${toEmail} using script URL ${i + 1}`);
+                return true;
+              } catch (noCorsErr) {
+                console.error(`Mail Script URL ${i + 1} failed completely:`, noCorsErr);
+                currentScriptIndex = i + 1; // Cache index increment to skip exhausted script
+              }
+            }
           }
+          console.error(`All configured email scripts failed for ${toEmail}. Quota exceeded or scripts down.`);
+          return false;
         };
+
+        let successCount = 0;
+        let failCount = 0;
 
         for (const targetEmail of targetEmails) {
           if (targetEmail === 'ALL') {
-            users.forEach((u) => {
+            for (const u of users) {
               if (u.email) {
-                sendEmail(u.email);
+                const ok = await sendEmail(u.email);
+                if (ok) successCount++;
+                else failCount++;
               }
-            });
+            }
           } else {
-            sendEmail(targetEmail);
+            const ok = await sendEmail(targetEmail);
+            if (ok) successCount++;
+            else failCount++;
           }
         }
-        toast.success("Notification published & Emails sent for Free!");
+
+        if (failCount > 0 && successCount === 0) {
+          toast.error("Failed to send emails. Daily quota exceeded on all script URLs.");
+        } else if (failCount > 0) {
+          toast.success(`Notification published! Sent ${successCount} emails, failed ${failCount} (quota limits).`);
+        } else {
+          toast.success("Notification published & Emails sent successfully! 🚀");
+        }
       } else {
         toast.success("Notification sent successfully (Mailing script url not configured).");
       }

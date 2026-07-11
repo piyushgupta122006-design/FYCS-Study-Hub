@@ -1131,7 +1131,7 @@ export default function Admin() {
                   <tr>
                     <td style="padding-bottom:48px;">
                       <!-- Site Logo (Placeholder for your logo) -->
-                      <img src="https://fycs-study-hub.vercel.app/logo.png" width="32" height="32" alt="Study Hub" style="display:block;">
+                      <img src="https://fycs-study-hub.vercel.app/favicon.png" width="32" height="32" alt="Study Hub" style="display:block;">
                     </td>
                   </tr>
                   <tr>

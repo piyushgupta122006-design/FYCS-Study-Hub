@@ -395,27 +395,37 @@ function App() {
   // Track daily visitor
   useEffect(() => {
     const trackDailyVisitor = async () => {
+      // Sirf logged-in, verified users hi track honge (Firestore rules bhi
+      // request.auth != null maangte hain, aur Admin dashboard ka unique
+      // count sirf visitorDetails se banta hai, so anonymous visit track
+      // karne ka koi fayda nahi hai).
+      if (!user) return;
+
       try {
         const today = new Date().toLocaleDateString('en-CA');
-        const lastVisit = localStorage.getItem('lastVisitDate');
+        // 🔑 Key ab per-user hai (uid ke saath), sirf per-day nahi.
+        // Pehle ek hi localStorage key ('lastVisitDate') poore browser ke
+        // liye thi, toh agar ek hi device pe alag-alag accounts login
+        // karte the same din, doosre account ka visit record hi nahi hota tha.
+        const storageKey = `lastVisitDate_${user.uid}`;
+        const lastVisit = localStorage.getItem(storageKey);
 
         if (lastVisit !== today) {
-          localStorage.setItem('lastVisitDate', today);
           const statRef = doc(db, 'analytics', today);
 
-          // Data prepare karein
-          const updateData = { visitors: increment(1) };
-
-          // Agar user logged in hai, toh uski details array mein push karein
-          if (user) {
-            updateData.visitorDetails = arrayUnion({
+          await setDoc(statRef, {
+            visitors: increment(1),
+            visitorDetails: arrayUnion({
               name: user.displayName || user.name || "Unknown User",
               email: user.email || "Unknown Email",
               time: new Date().toISOString()
-            });
-          }
+            })
+          }, { merge: true });
 
-          await setDoc(statRef, updateData, { merge: true });
+          // Sirf successful Firestore write ke baad hi flag set karein,
+          // taaki permission-denied jaisi silent failure ko galti se
+          // "already tracked" mark na kar diya jaaye.
+          localStorage.setItem(storageKey, today);
         }
       } catch (error) {
         console.error("Analytics error:", error);

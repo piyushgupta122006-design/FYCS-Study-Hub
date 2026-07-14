@@ -264,21 +264,18 @@ export default function AdminUpload() {
     }
 
     setIsDirectUploading(true);
-    setDirectUploadProgress(5);
-
-    const progressInterval = setInterval(() => {
-      setDirectUploadProgress(prev => {
-        if (prev < 40) return prev + 6;
-        if (prev < 75) return prev + 3;
-        if (prev < 95) return prev + 0.8;
-        return prev;
-      });
-    }, 150);
+    setDirectUploadProgress(0);
 
     try {
       // Background upload request trigger (targetPremiumName null hoga toh original name se upload hoga)
-      const result = await uploadSingleFile(file, "Admin_Direct", targetPremiumName);
-      clearInterval(progressInterval);
+      const result = await uploadSingleFile(
+        file,
+        "Admin_Direct",
+        targetPremiumName,
+        (percent) => {
+          setDirectUploadProgress(percent);
+        }
+      );
       setDirectUploadProgress(100);
 
       if (result.success) {
@@ -305,7 +302,6 @@ export default function AdminUpload() {
         }
       }
     } catch (error) {
-      clearInterval(progressInterval);
       console.error(error);
       toast.error("Direct upload stream rejected by Drive server configuration.");
     } finally {

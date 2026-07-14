@@ -137,27 +137,18 @@ export default function Upload() {
   // 🌟 Real background asynchronous upload matching typical upload states
   const triggerBackgroundUpload = async (file) => {
     const fileName = file.name;
-    setUploadProgress(prev => ({ ...prev, [fileName]: 5 }));
-
-    let progress = 5;
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        const currentProgress = prev[fileName] || progress;
-        let increment = 0;
-        if (currentProgress < 40) increment = 8;
-        else if (currentProgress < 75) increment = 4;
-        else if (currentProgress < 90) increment = 1;
-        else if (currentProgress < 99) increment = 0.2;
-        
-        const nextProgress = Math.min(99, parseFloat((currentProgress + increment).toFixed(1)));
-        return { ...prev, [fileName]: nextProgress };
-      });
-    }, 150);
+    setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
 
     try {
-      const result = await uploadSingleFile(file, user?.displayName || user?.email?.split('@')[0] || "Student");
-      clearInterval(interval);
-      
+      const result = await uploadSingleFile(
+        file,
+        user?.displayName || user?.email?.split('@')[0] || "Student",
+        undefined,
+        (percent) => {
+          setUploadProgress(prev => ({ ...prev, [fileName]: percent }));
+        }
+      );
+
       if (result.success) {
         setUploadProgress(prev => ({ ...prev, [fileName]: 100 }));
         setUploadedLinks(prev => ({ ...prev, [fileName]: { fileUrl: result.fileUrl, fileId: result.fileId } }));
@@ -165,14 +156,12 @@ export default function Upload() {
       } else {
         setUploadProgress(prev => { const c = { ...prev }; delete c[fileName]; return c; });
         setSelectedFiles(prev => prev.filter(f => f.name !== fileName));
-        toast.error(`❌ Failed to upload ${fileName}`);
+        toast.error(`Failed to upload ${fileName}`);
       }
-    } catch (error) {
-      clearInterval(interval);
+    } catch (err) {
       setUploadProgress(prev => { const c = { ...prev }; delete c[fileName]; return c; });
       setSelectedFiles(prev => prev.filter(f => f.name !== fileName));
-      console.error(error);
-      toast.error(`❌ Error uploading ${fileName}`);
+      toast.error(`Failed to upload ${fileName}`);
     }
   };
 

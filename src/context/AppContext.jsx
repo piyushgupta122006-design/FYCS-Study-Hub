@@ -583,38 +583,55 @@ export const AppProvider = ({ children }) => {
     reader.onerror = error => reject(error);
   });
 
-  // 🌟 UPDATED: Parameterized upload wrapper supporting custom dynamic filenames
-  const uploadSingleFile = async (file, userName, customFileName) => {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmFWZ4-lWSzfRuPdvJgIKjNaXTFzxXFXRvJUAybpouTXYhQZSIMun5w6L-DiiJO-7QiA/exec";
+  // 🌟 Estimated-time based simulation (koi fixed 99% cap nahi)
+  const uploadSingleFile = async (file, userName, customFileName, onProgress) => {
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMLyR-WYFHla9UlkmW_739DcMCSlNHDytuwGSRzmgk6S43Trv6lCgjqecC19HfSqA3xQ/exec";
 
     const cleanPart = (value) => (value || "")
-      .toString()
-      .trim()
+      .toString().trim()
       .replace(/[\\/:*?"<>|]+/g, "-")
       .replace(/\s+/g, " ");
 
     const extension = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
     const originalNameWithoutExt = file.name.includes('.') ? file.name.substring(0, file.name.lastIndexOf('.')) : file.name;
     const cleanName = cleanPart(originalNameWithoutExt);
-
-    // 🚨 IF customFileName is provided, use it directly. Otherwise, fall back to standard format.
     const finalFileName = customFileName ? customFileName.trim() : (userName ? `${cleanPart(userName)}-${cleanName}${extension}` : `${cleanName}${extension}`);
 
-    const base64Data = await toBase64(file);
-    const response = await fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({ base64: base64Data, name: finalFileName, mimeType: file.type })
-    });
-    const result = await response.json();
-    if (result.status === "success") {
-      return { success: true, fileUrl: result.fileUrl, fileId: result.fileId };
-    } else {
-      throw new Error(result.message || "Failed to upload file to Google Drive");
+    // Average ~1.5 Mbps effective throughput assume karke estimate
+    const estimatedMs = Math.max(2000, (file.size / (1.5 * 1024 * 1024 / 8)) * 1000);
+    const startTime = Date.now();
+    let simInterval;
+    if (onProgress) {
+      simInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(97, Math.round((elapsed / estimatedMs) * 100));
+        onProgress(pct);
+      }, 200);
+    }
+
+    try {
+      const base64Data = await toBase64(file);
+      const response = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ base64: base64Data, name: finalFileName, mimeType: file.type })
+      });
+      const result = await response.json();
+      clearInterval(simInterval);
+
+      if (result.status === "success") {
+        if (onProgress) onProgress(100);
+        return { success: true, fileUrl: result.fileUrl, fileId: result.fileId };
+      } else {
+        throw new Error(result.message || "Failed to upload file to Google Drive");
+      }
+    } catch (err) {
+      clearInterval(simInterval);
+      throw err;
     }
   };
 
   const startGlobalUpload = async (filesToUpload, metadata, userName, userEmail) => {
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmFWZ4-lWSzfRuPdvJgIKjNaXTFzxXFXRvJUAybpouTXYhQZSIMun5w6L-DiiJO-7QiA/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMLyR-WYFHla9UlkmW_739DcMCSlNHDytuwGSRzmgk6S43Trv6lCgjqecC19HfSqA3xQ/exec";
     const emailAccessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
     let successCount = 0;
 
@@ -632,7 +649,6 @@ export const AppProvider = ({ children }) => {
     for (let i = 0; i < filesToUpload.length; i++) {
       const file = filesToUpload[i];
       const preUploaded = metadata.preUploadedLinks && metadata.preUploadedLinks[i];
-      let progressInterval;
 
       try {
         const extension = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
@@ -651,36 +667,20 @@ export const AppProvider = ({ children }) => {
             realProgress: ((i + 1) * 100) / filesToUpload.length
           }));
         } else {
-          progressInterval = setInterval(() => {
-            setGlobalUploadState(prev => {
-              const fileStart = (i * 100) / filesToUpload.length;
-              const currentFileProgress = (prev.realProgress - fileStart) * filesToUpload.length;
-              let increment = 0;
-              if (currentFileProgress < 40) increment = 4.0;
-              else if (currentFileProgress < 75) increment = 2.0;
-              else if (currentFileProgress < 90) increment = 0.5;
-              else if (currentFileProgress < 99) increment = 0.1;
-
-              return { ...prev, realProgress: prev.realProgress + (increment / filesToUpload.length) };
-            });
-          }, 100);
-
-          const base64Data = await toBase64(file);
-          const response = await fetch(SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({ base64: base64Data, name: customFileName, mimeType: file.type })
-          });
-
-          const result = await response.json();
-          if (progressInterval) clearInterval(progressInterval);
-
-          if (result.status === "success") {
-            fileUrl = result.fileUrl;
-            fileId = result.fileId;
-          } else {
-            toast.error(`Failed to upload ${customFileName}`);
-            continue;
-          }
+          const result = await uploadSingleFile(
+            file,
+            userName,
+            customFileName,
+            (percent) => {
+              setGlobalUploadState(prev => {
+                const fileStart = (i * 100) / filesToUpload.length;
+                const fileShare = 100 / filesToUpload.length;
+                return { ...prev, realProgress: fileStart + (percent / 100) * fileShare };
+              });
+            }
+          );
+          fileUrl = result.fileUrl;
+          fileId = result.fileId;
         }
 
         if (fileUrl) {
@@ -708,7 +708,6 @@ export const AppProvider = ({ children }) => {
           }));
         }
       } catch (error) {
-        if (progressInterval) clearInterval(progressInterval);
         console.error("Upload Crash Log:", error);
         toast.error(`Error uploading ${file.name}`);
       }

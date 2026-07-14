@@ -1222,18 +1222,33 @@ export default function Admin() {
         let successCount = 0;
         let failCount = 0;
         const failedEmails = [];
-        let currentCount = 0;
+        
+        // 🚀 NAYA SUPERFAST BATCHING LOGIC
+        const BATCH_SIZE = 10; // Ek baar mein 10 emails parallel jayenge
 
-        for (const email of recipients) {
-          currentCount++;
-          toast.loading(`[${currentCount}/${totalEmails}] Sending email to ${email}...`, { id: loadingToast });
-          const ok = await sendEmail(email);
-          if (ok) {
-            successCount++;
-          } else {
-            failCount++;
-            failedEmails.push(email);
-          }
+        for (let i = 0; i < totalEmails; i += BATCH_SIZE) {
+          const batch = recipients.slice(i, i + BATCH_SIZE);
+          
+          toast.loading(`[Fast Mode] Sending batch ${Math.ceil(i/BATCH_SIZE) + 1} of ${Math.ceil(totalEmails/BATCH_SIZE)}...`, { id: loadingToast });
+
+          // Ek saath 10 requests trigger karo
+          const batchPromises = batch.map(async (email) => {
+            const ok = await sendEmail(email);
+            return { email, ok };
+          });
+
+          // Wait karo jab tak yeh 10 ka guccha send na ho jaye
+          const results = await Promise.all(batchPromises);
+
+          // Results count karo
+          results.forEach(res => {
+            if (res.ok) {
+              successCount++;
+            } else {
+              failCount++;
+              failedEmails.push(res.email);
+            }
+          });
         }
 
         toast.dismiss(loadingToast);

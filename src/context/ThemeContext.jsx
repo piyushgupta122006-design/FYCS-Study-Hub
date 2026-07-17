@@ -35,6 +35,11 @@ export const ThemeProvider = ({ children }) => {
     } catch (_) {
       /* ignore write failures */
     }
+    // Update Chrome address-bar / theme-color meta tag
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", theme === "glass" ? "#f3eefc" : "#0a0a0a");
+    }
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

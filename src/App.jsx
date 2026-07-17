@@ -37,7 +37,7 @@ const Sk = ({ className, style }) => (
 function NavbarSkeleton() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 border-t border-white/10 z-50 px-2 py-3"
-      style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(24px)' }}>
+      style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(24px)' }}>
       <div className="flex justify-around items-center max-w-md mx-auto">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex flex-col items-center gap-1">

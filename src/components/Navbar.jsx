@@ -102,7 +102,13 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="glass-nav px-2 py-3">
+    <nav 
+      className="glass-nav px-2 py-3"
+      style={{
+        backdropFilter: "blur(24px) saturate(var(--card-sat))",
+        WebkitBackdropFilter: "blur(24px) saturate(var(--card-sat))"
+      }}
+    >
       <div className="flex justify-around items-center max-w-md mx-auto">
         {navItems.map((item) => (
           <Link 

@@ -646,9 +646,10 @@
   /* Theme-aware Glassmorphism (Critical) — driven by --card-* vars in :root/[data-theme] */
   .glass-card {
     background: var(--card-bg);
-    --card-filter: blur(var(--card-blur)) saturate(var(--card-sat));
-    backdrop-filter: var(--card-filter);
-    -webkit-backdrop-filter: var(--card-filter);
+    --card-blur-filter: blur(var(--card-blur));
+    --card-sat-filter: saturate(var(--card-sat));
+    backdrop-filter: var(--card-blur-filter) var(--card-sat-filter);
+    -webkit-backdrop-filter: var(--card-blur-filter) var(--card-sat-filter);
     border: 1px solid var(--card-border);
     border-radius: var(--card-radius);
     box-shadow: var(--card-shadow);
@@ -679,11 +680,12 @@
 
   .glass-nav {
     @apply fixed bottom-0 left-0 right-0 z-50;
-    --nav-filter: blur(24px) saturate(var(--card-sat));
+    --nav-blur: blur(24px);
+    --nav-sat: saturate(var(--card-sat));
     background: var(--nav-bg);
     border-top: 1px solid var(--card-border);
-    backdrop-filter: var(--nav-filter);
-    -webkit-backdrop-filter: var(--nav-filter);
+    backdrop-filter: var(--nav-blur) var(--nav-sat);
+    -webkit-backdrop-filter: var(--nav-blur) var(--nav-sat);
     transition: background 0.4s ease, border-color 0.4s ease;
   }
 
@@ -821,9 +823,10 @@ button[disabled] {
 
     /* Glassmorphism background */
     background-color: var(--card-bg);
-    --select-filter: blur(14px) saturate(var(--card-sat));
-    backdrop-filter: var(--select-filter);
-    -webkit-backdrop-filter: var(--select-filter);
+    --select-blur-filter: blur(14px);
+    --select-sat-filter: saturate(var(--card-sat));
+    backdrop-filter: var(--select-blur-filter) var(--select-sat-filter);
+    -webkit-backdrop-filter: var(--select-blur-filter) var(--select-sat-filter);
 
     /* Border */
     border: 1px solid var(--card-border);
@@ -1515,9 +1518,10 @@ button[disabled] {
 /* Glass Card styling inside Login */
 [data-theme="glass"] .login-page .backdrop-blur-xl {
   background: var(--card-bg) !important;
-  --login-card-filter: blur(var(--card-blur)) saturate(var(--card-sat));
-  backdrop-filter: var(--login-card-filter) !important;
-  -webkit-backdrop-filter: var(--login-card-filter) !important;
+  --login-card-blur-filter: blur(var(--card-blur));
+  --login-card-sat-filter: saturate(var(--card-sat));
+  backdrop-filter: var(--login-card-blur-filter) var(--login-card-sat-filter) !important;
+  -webkit-backdrop-filter: var(--login-card-blur-filter) var(--login-card-sat-filter) !important;
   border-color: var(--card-border) !important;
   box-shadow: var(--card-shadow) !important;
 }

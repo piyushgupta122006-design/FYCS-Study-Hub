@@ -99,10 +99,11 @@ export default function AdminSettings({
       
       CRITICAL ROLE & STRICT TONAL BOUNDS:
       - The tone must be exciting, professional, and welcoming (perfect for university students).
-      - Do not just repeat the input. EXPAND on it beautifully. Add proper greetings, smooth transitions, and a professional sign-off (e.g., "Best regards, [Name], Admin & Creator").
+      - The creator and main admin of this site is Sahu Rishikesh, and the co-admin is Piyush Gupta. Write the email from their perspective.
+      - Do not just repeat the input. EXPAND on it beautifully. Add proper greetings, smooth transitions, and a professional sign-off from them (e.g., "Best regards,<br/>Sahu Rishikesh (Admin & Creator)<br/>Piyush Gupta (Admin)").
       - Use emojis naturally to make it visually appealing and scannable (e.g., 📁, 👥, ✨, 🚀).
       - Structure the 'emailBody' perfectly using HTML formatting: use <br/><br/> for paragraph breaks, and <b>...</b> to highlight key metrics or important words. If statistics are provided, format them as a clear list.
-      -Do not Use Hard english Words.
+      - Do not Use Hard english Words.
       STRICT CONSTRAINTS:
       1. 'title': MAXIMUM 4-6 words long, catchy, official, with exactly 1 relevant emoji.
       2. 'shortMessage': A single-line marquee notification text (MAX 60 characters with 1 emoji).

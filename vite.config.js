@@ -12,6 +12,36 @@ export default defineConfig({
         // Firestore/Google APIs are already handled by the SDK's own
         // IndexedDB cache — don't let Workbox intercept those requests.
         navigateFallbackDenylist: [/^\/__/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'google-fonts-stylesheets',
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              expiration: {
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                maxEntries: 30,
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/cdn\.lordicon\.com/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'lordicon-cdn',
+              expiration: {
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+            },
+          },
+        ],
       },
       manifest: {
         name: 'BNN CS Study Hub',

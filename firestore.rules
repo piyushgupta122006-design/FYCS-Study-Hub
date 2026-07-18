@@ -16,9 +16,13 @@ service cloud.firestore {
       allow create: if request.auth != null && 
         (request.resource.data.status == 'Pending' || getUserRole() == 'admin' || getUserRole() == 'superadmin'); 
       
-      // ✅ Edit or Approve requires Admin/Superadmin
+      // ✅ Edit or Approve requires Admin/Superadmin. Normal users can only update views and viewedBy fields.
       allow update: if request.auth != null && 
-        (getUserRole() == 'admin' || getUserRole() == 'superadmin');
+        (
+          getUserRole() == 'admin' || 
+          getUserRole() == 'superadmin' ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'viewedBy'])
+        );
         
       // 🚨 Superadmin only
       allow delete: if request.auth != null && getUserRole() == 'superadmin';

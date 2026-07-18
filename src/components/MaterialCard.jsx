@@ -1,4 +1,4 @@
-import { FileText, ExternalLink, Download, Edit3, Pencil, Flag, Eye, Calendar, User, CheckCircle, Bookmark, Loader2, Share2 } from "lucide-react";
+import { FileText, ExternalLink, Download, Edit3, Pencil, Flag, Eye, Calendar, User, CheckCircle, Bookmark, Loader2, Share2, X, Users, Search, Clock } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useState } from "react";
 import { doc, updateDoc, increment, collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import { toast } from "react-hot-toast";
 
 export default function MaterialCard({ material, onIncrementView, convertToDownloadLink, navigateToSubject = false, navigate, isNewMaterial, getSubjectById, onEdit, adminCompact = false }) {
-  const { isAdmin, user, toggleFavorite } = useApp();
+  const { isAdmin, user, toggleFavorite, incrementView } = useApp();
   
   // Local state for optimistic updates
   const [viewCount, setViewCount] = useState(material.views || 0);
@@ -15,6 +15,30 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
   
   // Loading state for favorite button
   const [loadingFavId, setLoadingFavId] = useState(null);
+  
+  // Loading state for view button
+  const [isViewing, setIsViewing] = useState(false);
+
+  // View modal state
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  // Viewers search query state
+  const [viewersSearchQuery, setViewersSearchQuery] = useState("");
+
+  // Helper function to format time and date as "18 Jul, 05:55 PM"
+  const formatTime = (timeString) => {
+    if (!timeString) return "N/A";
+    try {
+      const date = new Date(timeString);
+      const day = date.getDate();
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = monthNames[date.getMonth()];
+      const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${day} ${month}, ${time}`;
+    } catch (e) {
+      return "N/A";
+    }
+  };
   
   // Report issue state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -136,6 +160,7 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
       const tabParam = material.type.toLowerCase();
       navigate(`/semester/${material.semId}/${material.subjectId}?tab=${tabParam}`);
     } else {
+      setIsViewing(true);
       try {
         window.open(material.link, "_blank", "noopener,noreferrer");
         const viewedMaterials = JSON.parse(localStorage.getItem('viewedMaterials') || '[]');
@@ -144,9 +169,7 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
           viewedMaterials.push(material.id);
           localStorage.setItem('viewedMaterials', JSON.stringify(viewedMaterials));
 
-          await updateDoc(doc(db, "materials", material.id), { 
-            views: increment(1) 
-          });
+          await incrementView(material.id);
 
           addToRecentHistory(material);
           setViewCount(prev => prev + 1);
@@ -158,6 +181,10 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
       } catch (error) {
         console.error("Error updating view count:", error);
         window.open(material.link, "_blank", "noopener,noreferrer");
+      } finally {
+        setTimeout(() => {
+          setIsViewing(false);
+        }, 2000);
       }
     }
   };
@@ -274,10 +301,19 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
           <div className="flex items-center gap-2">
             <button
               type="button"
+              disabled={isViewing}
               onClick={handleViewClick}
-              className="flex-1 py-2 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-200 font-bold hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+              className={`flex-1 py-2 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-200 font-bold hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2 ${isViewing ? "opacity-60 cursor-not-allowed" : ""}`}
             >
-              View <ExternalLink size={16} />
+              {isViewing ? (
+                <>
+                  Viewing... <Loader2 className="animate-spin" size={16} />
+                </>
+              ) : (
+                <>
+                  View <ExternalLink size={16} />
+                </>
+              )}
             </button>
             <button
               type="button"
@@ -339,8 +375,12 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
 
           {isAdmin && (
             <div className="flex items-center gap-2 sm:gap-3 font-medium mx-auto">
-              <span className="flex items-center gap-1 text-blue-400" title="Views">
-                <Eye size={12} className="sm:w-[14px] sm:h-[14px]" /> {material.views || 0}
+              <span 
+                className="flex items-center gap-1 text-blue-400 cursor-pointer hover:underline" 
+                title="Viewers Log"
+                onClick={() => setIsViewModalOpen(true)}
+              >
+                <Eye size={12} className="sm:w-[14px] sm:h-[14px]" /> {viewCount}
               </span>
               <span className="flex items-center gap-1 text-green-400" title="Downloads">
                 <Download size={12} className="sm:w-[14px] sm:h-[14px]" /> {material.downloads || 0}
@@ -454,6 +494,102 @@ export default function MaterialCard({ material, onIncrementView, convertToDownl
                 </div>
               </>
             )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Viewers Log Modal */}
+      {isViewModalOpen && createPortal(
+        <div 
+          onClick={() => {
+            setIsViewModalOpen(false);
+            setViewersSearchQuery("");
+          }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm glass-card overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-200"
+          >
+            
+            {/* Header */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-lg border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.05)]">
+                <Users size={14} />
+                <span className="text-[11px] font-extrabold tracking-wide">
+                  Views: {material.viewedBy?.length || 0}
+                </span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setViewersSearchQuery("");
+                }} 
+                className="text-zinc-400 hover:text-white transition-colors"
+                aria-label="Close viewers modal"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Search Input Box */}
+            <div className="p-3 border-b border-white/10 bg-black/20">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="text-white/70" size={14} />
+                </div>
+                <input 
+                  type="text" 
+                  value={viewersSearchQuery}
+                  onChange={(e) => setViewersSearchQuery(e.target.value)}
+                  placeholder="Search by name or email..." 
+                  className="w-full glass-card pl-9 pr-4 py-2 text-xs bg-white/5 border border-white/20 text-white placeholder:text-white/60 focus:border-[#FFD700] focus:outline-none transition-all duration-200" 
+                />
+              </div>
+            </div>
+
+            {/* Viewers List */}
+            <div className="p-2 space-y-1.5 max-h-[calc(100vh-220px)] overflow-y-auto no-scrollbar">
+              {(() => {
+                const filtered = (material.viewedBy || []).filter(v => {
+                  const name = (v.name || "").toLowerCase();
+                  const email = (v.email || "").toLowerCase();
+                  const q = viewersSearchQuery.toLowerCase();
+                  return name.includes(q) || email.includes(q);
+                });
+
+                if (filtered.length > 0) {
+                  return [...filtered]
+                    .sort((a, b) => new Date(b.time) - new Date(a.time))
+                    .map((v, i) => (
+                      <div 
+                        key={i} 
+                        className="bg-zinc-900/50 border border-zinc-800/50 p-2.5 px-3 rounded-xl flex items-center justify-between gap-3 transition-colors hover:bg-zinc-800/50 hover:border-zinc-700 duration-150 animate-in fade-in slide-in-from-bottom-1"
+                      >
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="font-bold text-white text-xs truncate tracking-wide">{v.name}</span>
+                          <span className="text-[10px] text-white/70 truncate mt-0.5">{v.email}</span>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded-md border border-cyan-500/15">
+                            <Clock size={10} />
+                            {formatTime(v.time)}
+                          </span>
+                        </div>
+                      </div>
+                    ));
+                }
+
+                return (
+                  <p className="text-zinc-500 text-xs text-center py-6">
+                    {material.viewedBy?.length > 0 ? "No matching viewers found." : "No views recorded yet."}
+                  </p>
+                );
+              })()}
+            </div>
+
           </div>
         </div>,
         document.body

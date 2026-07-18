@@ -147,30 +147,31 @@ export default function AdminUsers({
             {filteredUsers.slice(0, visibleUsersCount).map((user, index) => {
               return (
                 <div key={`user-${user.id}`} className="glass-card p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-white text-sm">{user.displayName || user.name}</h3>
+                  <div className="flex justify-between items-start gap-2 mb-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-white text-sm truncate">{user.displayName || user.name}</h3>
                         {CREATOR_EMAILS.includes(user.email) && (
-                          <span className="inline-flex items-center px-2 py-1 bg-yellow-500/20 text-yellow-300 text-[10px] font-bold rounded-full">
-                            <Crown size={10} className="mr-1" /> Super Admin
+                          <span className="inline-flex items-center px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-[9px] font-bold rounded-full whitespace-nowrap">
+                            <Crown size={8} className="mr-0.5" /> Super Admin
                           </span>
                         )}
                       </div>
-                      <p className="text-white/70 text-xs mt-1 truncate max-w-[200px]">{user.email}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-[10px] font-bold ${
-                          user.role === "admin"
-                            ? "bg-purple-500/20 text-purple-300"
-                            : "bg-blue-500/20 text-blue-300"
-                        }`}>
-                          {user.role === "admin" ? (
-                            <><Shield size={10} className="inline mr-1" /> Admin</>
-                          ) : (
-                            <><User size={10} className="inline mr-1" /> Student</>
-                          )}
-                        </span>
-                      </div>
+                      <p className="text-white/70 text-xs mt-1 truncate max-w-[180px] sm:max-w-xs">{user.email}</p>
+                    </div>
+                    
+                    <div className="flex-shrink-0">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                        user.role === "admin"
+                          ? "bg-purple-500/20 text-purple-300"
+                          : "bg-blue-500/20 text-blue-300"
+                      }`}>
+                        {user.role === "admin" ? (
+                          <><Shield size={10} className="mr-1" /> Admin</>
+                        ) : (
+                          <><User size={10} className="mr-1" /> Student</>
+                        )}
+                      </span>
                     </div>
                   </div>
 

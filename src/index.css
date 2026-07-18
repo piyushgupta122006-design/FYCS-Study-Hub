@@ -505,18 +505,47 @@
 [data-theme="glass"] [class*="fixed"] [class*="bg-\[\#0c0c0e\]"],
 [data-theme="glass"] .fixed [class*="bg-\[\#0c0c0e\]"],
 [data-theme="glass"] .fixed.bottom-24 [class*="bg-"],
+/* SweetAlert2 Popup Global Styles */
+.swal2-popup {
+  border-radius: 28px !important;
+}
+
+/* Dark Theme Default Override for SweetAlert2 */
+[data-theme="dark"] .swal2-popup,
+:root:not([data-theme="glass"]) .swal2-popup {
+  background: #0c0c0e !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .swal2-title,
+[data-theme="dark"] .swal2-html-container,
+[data-theme="dark"] .swal2-content,
+[data-theme="dark"] .swal2-validation-message,
+[data-theme="dark"] .swal2-popup *,
+:root:not([data-theme="glass"]) .swal2-title,
+:root:not([data-theme="glass"]) .swal2-html-container,
+:root:not([data-theme="glass"]) .swal2-content,
+:root:not([data-theme="glass"]) .swal2-validation-message,
+:root:not([data-theme="glass"]) .swal2-popup * {
+  color: #ffffff !important;
+}
+
+/* Glass Theme Override for SweetAlert2 */
 [data-theme="glass"] .swal2-popup {
-  background-color: rgba(255, 255, 255, 0.98) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
   color: rgb(var(--ink)) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
-  border-color: rgba(var(--ink), 0.15) !important;
+  border: 1px solid rgba(var(--ink), 0.15) !important;
   box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15) !important;
 }
 
 [data-theme="glass"] .swal2-title,
 [data-theme="glass"] .swal2-html-container,
 [data-theme="glass"] .swal2-content,
+[data-theme="glass"] .swal2-validation-message,
 [data-theme="glass"] .swal2-popup * {
   color: rgb(var(--ink)) !important;
 }
@@ -530,6 +559,15 @@
   background-color: rgba(255, 255, 255, 0.7) !important;
   color: rgb(var(--ink)) !important;
   border: 1px solid rgba(var(--ink), 0.1) !important;
+}
+
+/* Prevent confirm buttons or other colored elements from losing white text in glass mode */
+[data-theme="glass"] .swal2-popup button.swal2-confirm,
+[data-theme="glass"] .swal2-popup .bg-red-600,
+[data-theme="glass"] .swal2-popup .bg-rose-600,
+[data-theme="glass"] .swal2-popup [class*="bg-red-"],
+[data-theme="glass"] .swal2-popup [class*="bg-rose-"] {
+  color: #ffffff !important;
 }
 
 /* Card icon & pill backgrounds in glass mode */
@@ -1498,11 +1536,6 @@ button[disabled] {
 [data-theme="glass"] .login-page button * {
   color: rgb(255 255 255) !important;
   fill: currentColor !important;
-}
-
-[data-theme="glass"] .login-page button .animate-spin,
-[data-theme="glass"] .login-page button .animate-spin * {
-  fill: none !important;
 }
 
 /* Make the main backdrop orbglows soft in light mode */

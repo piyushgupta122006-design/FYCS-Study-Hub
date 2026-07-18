@@ -17,7 +17,104 @@ export default function Login() {
     }
   }, [user, navigate]);
 
+  const sendWelcomeEmail = async (userEmail, userName) => {
+    const mailScriptUrl = import.meta.env.VITE_MAIL_SCRIPT_URL;
+    if (!mailScriptUrl || mailScriptUrl === "YOUR_NEWLY_DEPLOYED_APPS_SCRIPT_URL") {
+      console.warn("Mail script URL is not configured. Skipping welcome email.");
+      return;
+    }
 
+    const welcomeTemplate = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          /* Mobile-first responsive rules */
+          @media screen and (max-width: 480px) {
+            .container { width: 100% !important; padding: 20px 12px !important; }
+            .card { border-radius: 12px !important; }
+            .header { padding: 20px 16px !important; }
+            .body { padding: 20px 16px !important; }
+            .footer { padding: 16px !important; }
+            h1 { font-size: 18px !important; }
+            p { font-size: 13px !important; }
+            .cta-btn { display: block !important; max-width: 100% !important; margin: 0 auto !important; }
+          }
+        </style>
+      </head>
+      <body style="margin:0; padding:0; background-color:#0a0a0a; -webkit-font-smoothing:antialiased;">
+        <div style="width:100%; table-layout:fixed; background-color:#0a0a0a;">
+          <!-- Container with max-width for desktop, fluid for mobile -->
+          <div class="container" style="max-width:480px; margin:0 auto; padding:32px 20px; font-family:'Segoe UI', Arial, sans-serif; box-sizing:border-box;">
+            
+            <!-- Card -->
+            <div class="card" style="background:linear-gradient(180deg,#151515 0%,#0d0d0d 100%); border:1px solid rgba(255,215,0,0.25); border-radius:16px; overflow:hidden;">
+
+              <!-- Header -->
+              <div class="header" style="background:linear-gradient(135deg,#1a1a1a,#0a0a0a); padding:28px 24px; text-align:center; border-bottom:1px solid rgba(255,215,0,0.15);">
+                <img src="https://fycs-study-hub.vercel.app/logo192.png" alt="BNN CS Study Hub" width="52" height="52" style="border-radius:12px; margin-bottom:12px;" />
+                <div style="color:#FFD700; font-size:11px; letter-spacing:2px; text-transform:uppercase; font-weight:700;">BNN CS Study Hub</div>
+              </div>
+
+              <!-- Body -->
+              <div class="body" style="padding:28px 24px;">
+                <h1 style="color:#ffffff; font-size:20px; margin:0 0 14px 0; font-weight:700;">Welcome aboard, ${userName} 👋</h1>
+                <p style="color:#d4d4d8; font-size:14px; line-height:1.6; margin:0 0 16px 0;">
+                  Your account has been successfully created on the official study portal for BNN Computer Science students. You now have access to notes, practicals, previous year questions, and assignments.
+                </p>
+                <p style="color:#d4d4d8; font-size:14px; line-height:1.6; margin:0 0 24px 0;">
+                  Everything is free, community-driven, and built specifically for our CS batch.
+                </p>
+
+                <!-- CTA button -->
+                <div style="text-align:center; margin:24px 0;">
+                  <a href="https://fycs-study-hub.vercel.app/" class="cta-btn" style="background-color:#FFD700; color:#0a0a0a; text-decoration:none; font-weight:700; font-size:14px; padding:14px 28px; border-radius:8px; display:inline-block;">
+                    Go to Study Hub →
+                  </a>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="footer" style="padding:18px 24px; border-top:1px solid rgba(255,255,255,0.08); text-align:center;">
+                <p style="color:#71717a; font-size:11px; margin:0 0 4px 0;">This is an automated message from BNN CS Study Hub.</p>
+                <p style="color:#52525b; font-size:11px; margin:0;">Questions? Reach out at <a href="mailto:rishiuttamsahu@gmail.com" style="color:#a1a1aa;">rishiuttamsahu@gmail.com</a></p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const urls = mailScriptUrl.split(",").map(u => u.trim()).filter(Boolean);
+    let success = false;
+
+    for (const url of urls) {
+      try {
+        await fetch(url, {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify({
+            email: userEmail,
+            subject: "Welcome to BNN CS Study Hub 🎓",
+            messageHtml: welcomeTemplate
+          })
+        });
+        success = true;
+        break;
+      } catch (err) {
+        console.warn("Mail script failed, trying next:", err);
+      }
+    }
+
+    if (success) {
+      console.log("Welcome email triggered successfully");
+    } else {
+      console.error("All welcome email mail script URLs failed.");
+    }
+  };
 
   const handleLogin = async () => {
     try {
@@ -28,7 +125,9 @@ export default function Login() {
       // just be discarded. The redirect result is handled on the next load.
       if (result?.redirecting) return;
 
-
+      if (result?.user?.email) {
+        await sendWelcomeEmail(result.user.email, result.user.displayName || "Student");
+      }
 
       navigate('/');
     } catch (error) {
@@ -128,9 +227,7 @@ export default function Login() {
               >
                 {isLoading ? (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-loader-circle w-5 h-5 mr-2 animate-spin" aria-hidden="true">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Signing in...
                   </>
                 ) : (

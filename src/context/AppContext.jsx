@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { db, auth, googleProvider, authReady } from '../firebase';
+import { db, auth, googleProvider, authReady, redirectResultReady } from '../firebase';
 import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, Timestamp, setDoc, query, orderBy, where, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, GoogleAuthProvider, updateProfile } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, GoogleAuthProvider, updateProfile } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { CheckCircle, X } from 'lucide-react';
 
@@ -273,12 +273,15 @@ export const AppProvider = ({ children }) => {
 
       if (!isMounted) return;
 
-      // Pick up the result of a signInWithRedirect() call (mobile/webview
-      // login flow). Must run BEFORE/alongside onAuthStateChanged so we can
-      // capture the Drive OAuth access token from the redirect, same as the
-      // popup flow does.
+      // Pick up the result of a signInWithRedirect() call. Awaits the
+      // SHARED, module-level promise from firebase.js (captured exactly
+      // once) rather than calling getRedirectResult() here directly —
+      // calling it fresh in this effect would get consumed/emptied by
+      // React StrictMode's dev-mode double-invoke (mount → unmount →
+      // remount), making every redirect-based login look like it silently
+      // failed in local development.
       try {
-        await getRedirectResult(auth);
+        await redirectResultReady;
       } catch (err) {
         console.error("Redirect sign-in error:", err);
         if (err?.code && err.code !== "auth/no-auth-event") {
@@ -435,23 +438,19 @@ export const AppProvider = ({ children }) => {
     };
   }, [materials, subjects, semesters]);
 
-  // Detect mobile devices / in-app webviews (Instagram, WhatsApp, Facebook, etc.)
-  // where signInWithPopup silently fails to return control to the opener.
-  // Standard mobile browsers (Chrome/Safari) support popups perfectly.
-  // 🚨 FIX 1: Force Redirect for ALL Mobile devices to prevent Tab-Kill Loop
-  const shouldUseRedirect = () => {
-    const ua = navigator.userAgent || navigator.vendor || "";
-    // Ab isme isInAppWebview ki zaroorat nahi, har mobile device redirect use karega
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-    return isMobile;
-  };
+  // 🚨 FIX: Ab har device (mobile + desktop) signInWithRedirect use karega,
+  // popup bilkul use nahi hoga. Isse popup-blocker, third-party-storage-block
+  // (Safari ITP / Brave / Chrome cookie settings), aur "disguised
+  // popup-closed-by-user" jaisi saari dikkatein ek hi consistent flow se
+  // solve ho jaati hain.
+  const shouldUseRedirect = () => true;
 
   // Authentication functions
   const login = async () => {
     if (shouldUseRedirect()) {
-      toast("In-app webview detected. Redirecting to Google. For a smoother experience, please open this site in Chrome or Safari.", {
-        icon: "ℹ️",
-        duration: 5000
+      toast("Redirecting to Google...", {
+        icon: "🔄",
+        duration: 2500
       });
       // Redirect flow: navigates away and comes back. Result is picked up
       // by getRedirectResult() in the useEffect below on next mount.
@@ -834,7 +833,20 @@ export const AppProvider = ({ children }) => {
   const incrementView = async (id) => {
     try {
       const materialRef = doc(db, "materials", id);
-      await updateDoc(materialRef, { views: increment(1) });
+      const currentUser = auth.currentUser;
+      
+      let updateData = { views: increment(1) };
+      
+      if (currentUser) {
+        const viewerDetails = {
+          name: currentUser.displayName || "Unknown",
+          email: currentUser.email || "No Email",
+          time: new Date().toISOString()
+        };
+        updateData.viewedBy = arrayUnion(viewerDetails);
+      }
+      
+      await updateDoc(materialRef, updateData);
       return { success: true };
     } catch (error) {
       console.error('Error incrementing view:', error);

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import compression from 'vite-plugin-compression'
 
 export default defineConfig({
   plugins: [
@@ -56,12 +57,28 @@ export default defineConfig({
         ],
       },
     }),
+    compression({
+      verbose: true,
+      disable: false,
+      threshold: 10240, // Compress files > 10KB
+      algorithm: 'gzip',
+      ext: '.gz',
+    }),
+    compression({
+      verbose: true,
+      disable: false,
+      threshold: 10240,
+      algorithm: 'brotli',
+      ext: '.br',
+    }),
   ],
   server: {
     host: true, // Listen on all addresses
     port: 5173,
   },
   build: {
+    minify: 'esbuild', // Faster builds
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -80,6 +97,6 @@ export default defineConfig({
         }
       }
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 600,
   }
 })

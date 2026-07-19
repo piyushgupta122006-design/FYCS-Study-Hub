@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { db, auth, googleProvider, authReady, redirectResultReady } from '../firebase';
 import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, Timestamp, setDoc, query, orderBy, where, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
-import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, GoogleAuthProvider, updateProfile } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, GoogleAuthProvider, updateProfile, sendEmailVerification } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { CheckCircle, X } from 'lucide-react';
 
@@ -313,6 +313,7 @@ export const AppProvider = ({ children }) => {
                 email: firebaseUser.email,
                 photoURL: firebaseUser.photoURL,
                 ...userData,
+                emailVerified: firebaseUser.emailVerified || false,
                 id: firebaseUser.uid
               });
               setUserRole(userData.role || "student");
@@ -342,16 +343,18 @@ export const AppProvider = ({ children }) => {
                   // (User state onSnapshot ke agle trigger me auto-update ho jayegi)
 
                 } else {
-                  // Fresh user - Koi duplicate nahi mila, normal create karo
+                  // Fresh user - create with emailVerified: false
                   const newUser = {
                     uid: firebaseUser.uid,
                     displayName: firebaseUser.displayName,
                     email: firebaseUser.email,
                     photoURL: firebaseUser.photoURL,
-                    role: "student", // Default role
-                    isBanned: false, // Default to not banned
-                    favorites: [], // Initialize empty favorites array
-                    createdAt: serverTimestamp() // Use serverTimestamp for consistency
+                    role: "student",
+                    isBanned: false,
+                    emailVerified: firebaseUser.emailVerified || false,
+                    verificationSentAt: serverTimestamp(),
+                    favorites: [],
+                    createdAt: serverTimestamp()
                   };
 
                   await setDoc(userDocRef, newUser);
@@ -361,9 +364,21 @@ export const AppProvider = ({ children }) => {
                     displayName: firebaseUser.displayName,
                     email: firebaseUser.email,
                     photoURL: firebaseUser.photoURL,
-                    id: firebaseUser.uid
+                    id: firebaseUser.uid,
+                    emailVerified: firebaseUser.emailVerified || false
                   });
                   setUserRole("student");
+
+                  // If email not verified, send verification email
+                  if (!firebaseUser.emailVerified) {
+                    try {
+                      await sendEmailVerification(firebaseUser);
+                      toast.info("Verification email sent. Please check your inbox.");
+                      console.log("Verification email sent to:", firebaseUser.email);
+                    } catch (emailErr) {
+                      console.warn("Failed to send verification email:", emailErr);
+                    }
+                  }
 
                   // Trigger welcome email silently in the background
                   sendWelcomeEmail(firebaseUser.email, firebaseUser.displayName || "Student");
@@ -438,12 +453,11 @@ export const AppProvider = ({ children }) => {
     };
   }, [materials, subjects, semesters]);
 
-  // 🚨 FIX: Ab har device (mobile + desktop) signInWithRedirect use karega,
-  // popup bilkul use nahi hoga. Isse popup-blocker, third-party-storage-block
-  // (Safari ITP / Brave / Chrome cookie settings), aur "disguised
-  // popup-closed-by-user" jaisi saari dikkatein ek hi consistent flow se
-  // solve ho jaati hain.
-  const shouldUseRedirect = () => true;
+  const shouldUseRedirect = () => {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) return false;
+    return true;
+  };
 
   // Authentication functions
   const login = async () => {
@@ -631,144 +645,147 @@ export const AppProvider = ({ children }) => {
   const startGlobalUpload = async (filesToUpload, metadata, userName, userEmail) => {
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMLyR-WYFHla9UlkmW_739DcMCSlNHDytuwGSRzmgk6S43Trv6lCgjqecC19HfSqA3xQ/exec";
     const emailAccessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
-    let successCount = 0;
+    
+    const results = {
+      succeeded: [],
+      failed: []
+    };
 
-    setGlobalUploadState({ uploading: true, current: 0, total: filesToUpload.length, realProgress: 0 });
+    try {
+      setGlobalUploadState({ uploading: true, current: 0, total: filesToUpload.length, realProgress: 0 });
 
-    const semName = semesters.find(s => String(s.id) === String(metadata.semester))?.name || `Sem-${metadata.semester}`;
-    const subName = subjects.find(s => String(s.id) === String(metadata.subject))?.name || `Sub-${metadata.subject}`;
+      const semName = semesters.find(s => String(s.id) === String(metadata.semester))?.name || `Sem-${metadata.semester}`;
+      const subName = subjects.find(s => String(s.id) === String(metadata.subject))?.name || `Sub-${metadata.subject}`;
 
-    const cleanPart = (value) => (value || "")
-      .toString()
-      .trim()
-      .replace(/[\\/:*?"<>|]+/g, "-")
-      .replace(/\s+/g, " ");
+      const cleanPart = (value) => (value || "")
+        .toString().trim()
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        .replace(/\s+/g, " ");
 
-    for (let i = 0; i < filesToUpload.length; i++) {
-      const file = filesToUpload[i];
-      const preUploaded = metadata.preUploadedLinks && metadata.preUploadedLinks[i];
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        const preUploaded = metadata.preUploadedLinks?.[i];
 
-      try {
-        const extension = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
-        let customFileName = `${cleanPart(userName)}-${cleanPart(semName)}-${cleanPart(subName)}-${cleanPart(metadata.title)}`;
-        if (filesToUpload.length > 1) customFileName += `-(Part ${i + 1})`;
-        customFileName += extension;
-
-        let fileUrl = "";
-        let fileId = "";
-
-        if (preUploaded && preUploaded.fileUrl) {
-          fileUrl = preUploaded.fileUrl;
-          fileId = preUploaded.fileId;
-          setGlobalUploadState(prev => ({
-            ...prev,
-            realProgress: ((i + 1) * 100) / filesToUpload.length
-          }));
-        } else {
-          const result = await uploadSingleFile(
-            file,
-            userName,
-            customFileName,
-            (percent) => {
-              setGlobalUploadState(prev => {
-                const fileStart = (i * 100) / filesToUpload.length;
-                const fileShare = 100 / filesToUpload.length;
-                return { ...prev, realProgress: fileStart + (percent / 100) * fileShare };
-              });
-            }
-          );
-          fileUrl = result.fileUrl;
-          fileId = result.fileId;
-        }
-
-        if (fileUrl) {
-          await addDoc(collection(db, "materials"), {
-            title: metadata.title,
-            semId: metadata.semester,
-            subjectId: metadata.subject,
-            type: metadata.type,
-            link: fileUrl,
-            fileId: fileId,
-            fileName: customFileName,
-            status: "Pending",
-            uploadedBy: userName,
-            uploadedByUid: user?.uid || null,
-            uploadedByEmail: userEmail,
-            date: new Date().toISOString(),
-            createdAt: serverTimestamp()
-          });
-
-          successCount++;
-          setGlobalUploadState(prev => ({
-            ...prev,
-            current: successCount,
-            realProgress: (successCount * 100) / filesToUpload.length
-          }));
-        }
-      } catch (error) {
-        console.error("Upload Crash Log:", error);
-        toast.error(`Error uploading ${file.name}`);
-      }
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setGlobalUploadState({ uploading: false, current: 0, total: 0, realProgress: 0 });
-
-    if (successCount > 0) {
-      if (emailAccessKey) {
         try {
-          const emailMessage = `A new student just uploaded materials to the Study Hub!\n\n👤 Student Name: ${userName || 'Student'}\n📧 Email: ${userEmail || 'No Email'}\n📚 Subject: ${subName || 'Unknown'}\n📁 Files Uploaded: ${successCount} document(s)\n\nPlease log in to the Admin Dashboard to Review and Approve.`;
+          setGlobalUploadState(prev => ({
+            ...prev,
+            current: i + 1
+          }));
 
-          fetch('https://api.web3forms.com/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_key: emailAccessKey,
-              subject: '🚨 FYCS Hub Alert: New Upload Pending!',
-              from_name: 'Study Hub System',
-              message: emailMessage
-            })
-          }).catch((err) => console.log('Email alert silently failed', err));
-        } catch (error) {
-          console.error('Alert Engine Error:', error);
+          const extension = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
+          let customFileName = `${cleanPart(userName)}-${cleanPart(semName)}-${cleanPart(subName)}-${cleanPart(metadata.title)}`;
+          if (filesToUpload.length > 1) customFileName += `-(Part ${i + 1})`;
+          customFileName += extension;
+
+          let fileUrl = "";
+          let fileId = "";
+
+          if (preUploaded?.fileUrl) {
+            fileUrl = preUploaded.fileUrl;
+            fileId = preUploaded.fileId;
+            setGlobalUploadState(prev => ({
+              ...prev,
+              realProgress: ((i + 1) * 100) / filesToUpload.length
+            }));
+          } else {
+            try {
+              const result = await uploadSingleFile(
+                file,
+                userName,
+                customFileName,
+                (percent) => {
+                  setGlobalUploadState(prev => {
+                    const fileStart = (i * 100) / filesToUpload.length;
+                    const fileShare = 100 / filesToUpload.length;
+                    return { ...prev, realProgress: fileStart + (percent / 100) * fileShare };
+                  });
+                }
+              );
+              fileUrl = result.fileUrl;
+              fileId = result.fileId;
+            } catch (uploadErr) {
+              throw new Error(`Failed to upload ${file.name}: ${uploadErr.message}`);
+            }
+          }
+
+          if (fileUrl) {
+            try {
+              await addDoc(collection(db, "materials"), {
+                title: metadata.title,
+                semId: metadata.semester,
+                subjectId: metadata.subject,
+                type: metadata.type,
+                link: fileUrl,
+                fileId: fileId,
+                fileName: customFileName,
+                status: "Pending",
+                uploadedBy: userName,
+                uploadedByUid: user?.uid || null,
+                uploadedByEmail: userEmail,
+                date: new Date().toISOString(),
+                createdAt: serverTimestamp()
+              });
+
+              results.succeeded.push({
+                file: file.name,
+                fileId: fileId
+              });
+            } catch (dbErr) {
+              throw new Error(`Database save failed for ${file.name}: ${dbErr.message}`);
+            }
+          }
+        } catch (fileError) {
+          console.error(`Error with file ${file.name}:`, fileError);
+          results.failed.push({
+            file: file.name,
+            error: fileError.message
+          });
         }
-      } else {
-        console.warn('VITE_WEB3FORMS_ACCESS_KEY is not set; admin email alert skipped.');
       }
 
-      toast.custom((t) => (
-        <div className={`${t.visible ? 'animate-in fade-in slide-in-from-top-4' : 'animate-out fade-out slide-out-to-right-8'} max-w-sm w-full glass-card bg-[#0c0c0e]/90 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-2xl pointer-events-auto flex relative overflow-hidden transition-all`}>
-          <div className="absolute top-0 left-0 w-1 bg-[#FFD700] h-full shadow-[0_0_15px_#FFD700]"></div>
+    } catch (globalError) {
+      console.error("Upload batch error:", globalError);
+      results.failed.push({
+        file: "Batch operation",
+        error: globalError.message
+      });
+    } finally {
+      // ALWAYS reset upload state, even if errors
+      setGlobalUploadState({ uploading: false, current: 0, total: 0, realProgress: 0 });
 
-          <div className="flex-1 w-0 p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <div className="bg-[#FFD700]/20 p-2 rounded-full">
-                  <CheckCircle className="h-5 w-5 text-[#FFD700]" />
-                </div>
-              </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-bold text-white tracking-tight">Upload Successful!</p>
-                <p className="mt-1 text-[11px] text-white/50 leading-relaxed">
-                  {successCount} files are now pending for admin review.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex border-l border-white/10">
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-      ), { duration: 5000 });
+      // Show results to user
+      if (results.succeeded.length > 0) {
+        toast.success(`✅ ${results.succeeded.length} file(s) uploaded successfully`);
+        
+        // Trigger web3forms notifications if enabled
+        if (emailAccessKey) {
+          try {
+            const emailMessage = `A new student just uploaded materials to the Study Hub!\n\n👤 Student Name: ${userName || 'Student'}\n📧 Email: ${userEmail || 'No Email'}\n📚 Subject: ${subName || 'Unknown'}\n📁 Files Uploaded: ${results.succeeded.length} document(s)\n\nPlease log in to the Admin Dashboard to Review and Approve.`;
+
+            fetch('https://api.web3forms.com/submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                access_key: emailAccessKey,
+                subject: '🚨 FYCS Hub Alert: New Upload Pending!',
+                from_name: 'Study Hub System',
+                message: emailMessage
+              })
+            }).catch((err) => console.log('Email alert silently failed', err));
+          } catch (error) {
+            console.error('Alert Engine Error:', error);
+          }
+        }
+      }
+      if (results.failed.length > 0) {
+        toast.error(`❌ ${results.failed.length} file(s) failed to upload`);
+        results.failed.forEach(f => {
+          console.error(`Failed: ${f.file} - ${f.error}`);
+        });
+      }
+
+      return results;
     }
-
-    return { success: successCount > 0, successCount };
   };
 
   // 2. Approve material (Pending → Approved)

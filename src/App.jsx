@@ -7,6 +7,8 @@ import { Bot, X, Loader2 } from "lucide-react";
 import BrainCircuitIcon from "./components/AnimatedIcons";
 import GlassBackdrop from "./components/GlassBackdrop";
 import ThemeToggle from "./components/ThemeToggle";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { useOfflineDetection } from "./hooks/useOfflineDetection";
 
 import { useApp } from "./context/AppContext";
 import { useTheme } from "./context/ThemeContext";
@@ -380,9 +382,10 @@ function RouteSuspenseFallback() {
 }
 
 function App() {
-  const { user, loading, isBanned, siteZoom } = useApp();
+  const { user, loading, isBanned, siteZoom, isAdmin } = useApp();
   const { isGlass } = useTheme();
   const location = useLocation(); // Use React Router's reactive location
+  const isOnline = useOfflineDetection();
 
   // Reactively check if the user is on a public page
   const isPublicRoute = location.pathname === '/privacy' || location.pathname === '/terms';
@@ -476,7 +479,12 @@ function App() {
 
   // Logged in - return the router with all routes
   return (
-    <>
+    <ErrorBoundary>
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 bg-red-500/15 border-b border-red-500/30 p-2 text-red-400 text-center text-sm z-[99999] backdrop-blur-sm">
+          ⚠️ You are currently offline. Some features may not work properly.
+        </div>
+      )}
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -509,10 +517,16 @@ function App() {
             <Route path="/semester/:semId/:subjectId" element={<Materials />} />
             <Route path="/library" element={<Library />} />
             <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
-            <Route path="/admin-upload" element={<ProtectedRoute requiredRole="admin"><AdminUpload /></ProtectedRoute>} />
-            <Route path="/admin/analytics/visitors" element={<ProtectedRoute requiredRole="admin"><TodayVisitorsPage /></ProtectedRoute>} />
-            <Route path="/admin/:activeTab" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
-            <Route path="/admin" element={<Navigate to="/admin/analytics" replace />} />
+            
+            {user && isAdmin && (
+              <>
+                <Route path="/admin-upload" element={<ProtectedRoute requiredRole="admin"><AdminUpload /></ProtectedRoute>} />
+                <Route path="/admin/analytics/visitors" element={<ProtectedRoute requiredRole="admin"><TodayVisitorsPage /></ProtectedRoute>} />
+                <Route path="/admin/:activeTab" element={<ProtectedRoute requiredRole="admin"><Admin /></ProtectedRoute>} />
+                <Route path="/admin" element={<Navigate to="/admin/analytics" replace />} />
+              </>
+            )}
+            
             <Route path="/profile" element={<Profile />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
@@ -526,7 +540,7 @@ function App() {
         {/* Floating AI Assistant Button */}
         <FloatingAIButton />
       </main>
-    </>
+    </ErrorBoundary>
   );
 }
 

@@ -189,7 +189,7 @@ export const AppProvider = ({ children }) => {
 
               <!-- Header -->
               <div class="header" style="background:linear-gradient(135deg,#1a1a1a,#0a0a0a); padding:28px 24px; text-align:center; border-bottom:1px solid rgba(255,215,0,0.15);">
-                <img src="https://fycs-study-hub.vercel.app/logo-b.png" alt="BNN CS Study Hub" width="52" height="52" style="border-radius:12px; margin-bottom:12px;" />
+                <img src="https://fycs-study-hub.vercel.app/favicon.png" alt="BNN CS Study Hub" width="52" height="52" style="border-radius:12px; margin-bottom:12px;" />
                 <div style="color:#FFD700; font-size:11px; letter-spacing:2px; text-transform:uppercase; font-weight:700;">BNN CS Study Hub</div>
               </div>
 

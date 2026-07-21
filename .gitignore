@@ -28,3 +28,7 @@ dist-ssr
 *.original
 *.temp
 temp_line.txt
+
+# Tool and agent state directories
+.claude-flow/
+.swarm/

@@ -19,6 +19,33 @@ export const useApp = () => {
 
 const CREATOR_EMAILS = ["rishiuttamsahu@gmail.com", "piyushgupta122006@gmail.com"];
 
+const CACHED_USER_KEY = "fycs_cached_user_v1";
+
+const readCachedUser = () => {
+  try {
+    const raw = localStorage.getItem(CACHED_USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedUser = (userObj) => {
+  try {
+    if (!userObj) {
+      localStorage.removeItem(CACHED_USER_KEY);
+      return;
+    }
+    const { uid, id, displayName, email, photoURL, role } = userObj;
+    localStorage.setItem(
+      CACHED_USER_KEY,
+      JSON.stringify({ uid, id, displayName, email, photoURL, role })
+    );
+  } catch {
+    // best-effort — never crash the app over optimistic caching
+  }
+};
+
 // Provider Component
 export const AppProvider = ({ children }) => {
   // State for materials and subjects from Firestore
@@ -32,7 +59,7 @@ export const AppProvider = ({ children }) => {
   ]);
 
   // Authentication state
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => readCachedUser());
 
   // Users state from Firestore
   const [users, setUsers] = useState([]);
@@ -46,7 +73,7 @@ export const AppProvider = ({ children }) => {
   // Now each data source has its own flag, so pages can render their
   // static shell immediately and progressively reveal each section as soon
   // as ITS data is ready — instead of an all-or-nothing skeleton swap.
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(() => readCachedUser() === null);
   const [authTimedOut, setAuthTimedOut] = useState(false);
   const [materialsLoading, setMaterialsLoading] = useState(true);
   const [subjectsLoading, setSubjectsLoading] = useState(true);
@@ -292,14 +319,14 @@ export const AppProvider = ({ children }) => {
 
         if (firebaseUser) {
           // Set loading true so UI doesn't render home page before fetching user doc
-          setAuthLoading(true);
+          setAuthLoading(readCachedUser() ? false : true);
           const userDocRef = doc(db, "users", firebaseUser.uid);
 
           unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data();
               // Merge Firebase Auth data with Firestore data (including favorites, role, etc)
-              setUser({
+              const mergedUser = {
                 uid: firebaseUser.uid,
                 displayName: firebaseUser.displayName,
                 email: firebaseUser.email,
@@ -307,7 +334,9 @@ export const AppProvider = ({ children }) => {
                 ...userData,
                 emailVerified: firebaseUser.emailVerified || false,
                 id: firebaseUser.uid
-              });
+              };
+              setUser(mergedUser);
+              writeCachedUser(mergedUser);
               setUserRole(userData.role || "student");
               setAuthLoading(false);
               setAuthTimedOut(false);
@@ -378,13 +407,15 @@ export const AppProvider = ({ children }) => {
               } catch (err) {
                 console.error("Error creating/migrating user doc:", err);
                 // Fallback UI unlock (Agar database fail bhi ho jaye toh login na ruke)
-                setUser({
+                const fallbackUser = {
                   uid: firebaseUser.uid,
                   displayName: firebaseUser.displayName,
                   email: firebaseUser.email,
                   photoURL: firebaseUser.photoURL,
                   id: firebaseUser.uid
-                });
+                };
+                setUser(fallbackUser);
+                writeCachedUser(fallbackUser);
                 setUserRole("student");
                 toast.error("Connected, but database profile sync delayed.");
               } finally {
@@ -399,6 +430,7 @@ export const AppProvider = ({ children }) => {
           });
         } else {
           setUser(null);
+          writeCachedUser(null);
           setUserRole(null);
           setAuthLoading(false);
           setAuthTimedOut(false);
@@ -485,6 +517,7 @@ export const AppProvider = ({ children }) => {
 
       // Force immediate state update for snappy UI
       setUser(result.user);
+      writeCachedUser(result.user);
 
       return { success: true, user: result.user };
     } catch (error) {
@@ -522,6 +555,7 @@ export const AppProvider = ({ children }) => {
   const logout = async () => {
     try {
       await signOut(auth);
+      writeCachedUser(null);
       return { success: true };
     } catch (error) {
       console.error('Logout error:', error);

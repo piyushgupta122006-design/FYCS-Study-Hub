@@ -18,12 +18,6 @@ export default function Login() {
   }, [user, navigate]);
 
   const sendWelcomeEmail = async (userEmail, userName) => {
-    const mailScriptUrl = import.meta.env.VITE_MAIL_SCRIPT_URL;
-    if (!mailScriptUrl || mailScriptUrl === "YOUR_NEWLY_DEPLOYED_APPS_SCRIPT_URL") {
-      console.warn("Mail script URL is not configured. Skipping welcome email.");
-      return;
-    }
-
     const welcomeTemplate = `
       <!DOCTYPE html>
       <html>
@@ -88,31 +82,29 @@ export default function Login() {
       </html>
     `;
 
-    const urls = mailScriptUrl.split(",").map(u => u.trim()).filter(Boolean);
-    let success = false;
+    const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const apiBaseUrl = isLocalhost ? "https://fycs-study-hub.vercel.app" : window.location.origin;
+    const sendEmailUrl = `${apiBaseUrl}/api/send-email`;
 
-    for (const url of urls) {
-      try {
-        await fetch(url, {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify({
-            email: userEmail,
-            subject: "Welcome to BNN CS Study Hub 🎓",
-            messageHtml: welcomeTemplate
-          })
-        });
-        success = true;
-        break;
-      } catch (err) {
-        console.warn("Mail script failed, trying next:", err);
+    try {
+      const response = await fetch(sendEmailUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sendSingle",
+          email: userEmail,
+          subject: "Welcome to BNN CS Study Hub 🎓",
+          messageHtml: welcomeTemplate
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        console.log("Welcome email triggered successfully via Brevo");
+      } else {
+        console.error("Welcome email failed:", data.error);
       }
-    }
-
-    if (success) {
-      console.log("Welcome email triggered successfully");
-    } else {
-      console.error("All welcome email mail script URLs failed.");
+    } catch (err) {
+      console.warn("Welcome email failed to dispatch:", err);
     }
   };
 

@@ -38,21 +38,20 @@ export default function AdminSettings({
 
   const fetchAllQuotas = async () => {
     setLoadingQuotas(true);
-    const urls = (import.meta.env.VITE_MAIL_SCRIPT_URL || "").split(",").map(u => u.trim()).filter(Boolean);
-    const results = await Promise.all(urls.map(async (url, idx) => {
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({ action: "checkQuota" })
-        });
-        const data = await res.json();
-        return { accountNo: idx + 1, remaining: data.remaining ?? 0 };
-      } catch {
-        return { accountNo: idx + 1, remaining: 0 };
-      }
-    }));
-    setAccountQuotas(results);
+    try {
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      const apiBaseUrl = isLocalhost ? "https://fycs-study-hub.vercel.app" : window.location.origin;
+      const res = await fetch(`${apiBaseUrl}/api/send-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "checkQuota" })
+      });
+      const data = await res.json();
+      setAccountQuotas([{ accountNo: 1, remaining: data.remaining ?? 0, label: "Brevo API Key" }]);
+    } catch (err) {
+      console.error("Failed to fetch quotas:", err);
+      setAccountQuotas([{ accountNo: 1, remaining: 0, label: "Brevo API Key" }]);
+    }
     setLoadingQuotas(false);
   };
 
@@ -544,14 +543,14 @@ export default function AdminSettings({
           {accountQuotas.length > 0 ? (
             accountQuotas.map((q) => (
               <div key={q.accountNo} className="bg-zinc-800/50 rounded-lg p-2.5 text-center border border-zinc-700/30">
-                <p className="text-[10px] text-zinc-400">Account {q.accountNo}</p>
+                <p className="text-[10px] text-zinc-400">{q.label || `Account ${q.accountNo}`}</p>
                 <p className="text-lg font-bold text-emerald-400 my-0.5">{q.remaining}</p>
                 <p className="text-[9px] text-zinc-500">emails left today</p>
               </div>
             ))
           ) : (
             <p className="col-span-full text-xs text-zinc-500 text-center py-2">
-              {loadingQuotas ? "Checking account quotas..." : "No email script URLs configured"}
+              {loadingQuotas ? "Checking account quotas..." : "No email settings configured"}
             </p>
           )}
         </div>
